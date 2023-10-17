@@ -3,6 +3,7 @@ import ydb
 import ydb.iam
 from dotenv import load_dotenv
 from helper import sum_dict_values
+from pprint import pprint
 #from helper import *
 load_dotenv()
 
@@ -231,6 +232,7 @@ class Ydb:
         rez = b[0].rows[0]['payload']
         #print('rez',rez)
         return rez
+    
     def get_project_id(self, whereID: int):
         query = f'SELECT project_id FROM user WHERE id = {whereID}'
         print(query)
@@ -252,6 +254,7 @@ class Ydb:
                 commit_tx=True,
             )
         return pool.retry_operation_sync(a)
+    
     def set_project_id(self, userID: int, entity:int):
         query = f'UPDATE user SET project_id = {entity} WHERE id = {userID}'
         #print(query)
@@ -300,6 +303,46 @@ class Ydb:
         #print('rez',rez)
         return rez
     
+    def get_question_list_on(self,subjectID:int):
+        # 'where id > 20 '
+        query = f'SELECT * FROM QuestionList WHERE idSubjectsOfDescription = {subjectID}'
+        print(query)
+
+        def a(session):
+            return session.transaction().execute(
+                query,
+                commit_tx=True,
+            )
+        b = pool.retry_operation_sync(a)
+       
+        rez = b[0].rows
+        #print('rez',rez)
+        return rez
+    
+    def get_answer_on(self,questionID:int, forProfileID:int):
+        # 'where id > 20 '
+        query = f'SELECT * FROM ProfileDescription WHERE idQuestionList	= {questionID} and idProfile ={forProfileID}'
+        print(query)
+
+        def a(session):
+            return session.transaction().execute(
+                query,
+                commit_tx=True,
+            )
+        b = pool.retry_operation_sync(a)
+       
+        rez = b[0].rows
+        #print('rez',rez)
+        return rez
+    
+    def get_answer_list_on(self, subjectID:int, forProfileID:int):
+        answers = []
+        questions = self.get_question_list_on(subjectID=subjectID)
+        for question in questions:
+            answer = self.get_answer_on(questionID=question['id'], forProfileID=forProfileID)[0]
+            answers.append(answer)
+        return answers
+    
     def plus_query_user(self, tableName: str, rows: dict, where: str):
         # 'where id > 20 '
         """складывает предыдущие значения row с новыми"""
@@ -332,6 +375,7 @@ class Ydb:
         # print(f'{b=}')
         return 0
         # b = pool.retry_operation_sync(a)
+
 def handler(event, context):
     return {
         'statusCode': 200,
@@ -340,8 +384,10 @@ def handler(event, context):
 
 if __name__ == '__main__':
     sql = Ydb()
-    a = sql.test()
-    print(a)
+    # a = sql.get_question_list_on(subjectID=1)
+    # a = sql.get_answer_on(questionID=1, forProfileID=1696864099755)
+    a = sql.get_answer_list_on(subjectID=1, forProfileID=1696864099755)
+    pprint(a)
     pass
     # a = Ydb()
     #b = a.get_currency_pair(2)

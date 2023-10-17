@@ -105,18 +105,18 @@ def send_button(message):
     #create_lead_and_attach_file([],userID)
 
 
-def my_project(userID):
+def my_project(userID, messageID):
     try:
             projects = sql.select_query('project', f'user_id = {userID}') 
     except:
-        bot.send_message(userID,'Опа, похоже кто-то жмет туда куда не следует') 
+        bot.edit_message_text(chat_id=userID,message_id=messageID,text='Опа, похоже кто-то жмет туда куда не следует') 
     dic = {}
     for project in projects:
         dic.setdefault(project['name'], f"project_{project['time_epoh']}")
 
-    bot.send_message(userID,'Список проектов',reply_markup=create_inlinekeyboard_is_row(dic) )
+    bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic) )
 
-def create_content(typeContent, userID):
+def create_content(typeContent, userID, messageID):
     global USERS_ANSWER_GPT
     projectID = sql.get_project_id(userID)
     project = sql.select_query('project',f'time_epoh={projectID}')[0] 
@@ -128,9 +128,11 @@ def create_content(typeContent, userID):
     createContent = ''
     keyboard=keyboard_create_content(typeContent)
     bot.send_message(userID, f'Ваш контент: {answerGPT}',reply_markup=keyboard)
+    # bot.edit_message_text(chat_id=userID,message_id=messageID, text=f'Ваш контент: {answerGPT}',reply_markup=keyboard)
     USERS_ANSWER_GPT[userID]=answerGPT
     sql.set_payload(userID, f'contentDone_{projectID}_{typeContent}')
-    
+
+   
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(callFull):
@@ -149,39 +151,69 @@ def callback_inline(callFull):
     
     
     if call[0] == 'project':
-        
         project = sql.select_query('project',f'time_epoh={call[1]}')[0]
         sql.set_payload(userID, f'projectEnter_{call[1]}')
         sql.set_project_id(userID, f'{call[1]}')
-
+        # project['id']
+        # sql.select_query('asdas', where answer == 'asdf' and project_id == 1234,)
         text = f"""Проект: {project['name']}"""
         keyboard = keyboard_menu_project()
-        bot.send_message(userID, text=text, reply_markup=keyboard)
+        bot.edit_message_text(chat_id=userID,message_id=message_id, text=text, reply_markup=keyboard)
         # keyboard = keyboard_type_content()
         bot.answer_callback_query(callFull.id) 
 
         return 0
     
+    # if call[0]=''
+
     if call[0] == 'contenPlan':
+        # keyboard = keyboard_type_content()
         if call[1] == 'create':
             keyboard = keyboard_type_content()
-            bot.send_message(userID, text='Какой тип контента хотите создать?', reply_markup=keyboard) 
+            # bot.send_message(userID, text='Какой тип контента хотите создать?', reply_markup=keyboard) 
+            bot.edit_message_text(chat_id=userID,message_id=message_id, text='Какой тип контента хотите создать?', reply_markup=keyboard) 
             # sql.set_payload(userID, 'content_plan')
-            pass
+        
         if call[1] == 'now':
+            # payload = sql.get_payload(userID).split('_')[2]
+            #сделать для каждого отдельно
+            contents = sql.select_query('content', f"project_id = {projectID}")
+            text = ''
+            # pprint(contents)
+            for content in contents:
+                # date = timestamp_to_date(content['time_epoh'],'%Y-%m-%d%H')
+                text += f"""2023-10-13 \n {content['text']} \n\n"""
+            bot.send_message(userID,text)    
+            pass
+    
+    if call[0] == 'storitaling':
+        # keyboard = keyboard_type_content()
+        if call[1] == 'create':
+            keyboard = keyboard_type_content()
+            # bot.send_message(userID, text='Какой тип контента хотите создать?', reply_markup=keyboard) 
+            bot.edit_message_text(chat_id=userID,message_id=message_id, text='Какой тип контента хотите создать?', reply_markup=keyboard) 
+            # sql.set_payload(userID, 'content_plan')
+        
+        if call[1] == 'now':
+            payload = sql.get_payload(userID).split('_')[2]
+            #сделать для каждого отдельно
+            content = sql.select_query('content', f"project_id = {projectID} and type_content = '{payload}' ")[0]
+            bot.send_message(userID,content['text'],)    
             pass
     
     if call[0] == 'menu':
         if call[1] == 'smm':
             keyboard = keyboard_smm_menu(project_id=projectID)
-            bot.send_message(userID, text='Меню настройки SMM', reply_markup=keyboard)
+            bot.edit_message_text(chat_id=userID,message_id=message_id, text='Меню настройки SMM', reply_markup=keyboard)
             
         if call[1] == 'contentPlan':
             keyboard = keyboard_content_plan(project_id=projectID)
-            bot.send_message(userID, text='Меню контент-плана', reply_markup=keyboard) 
+            bot.edit_message_text(chat_id=userID,message_id=message_id, text='Меню контент-плана', reply_markup=keyboard) 
         
         if call[1] == 'storitaling':
-            pass
+            keyboard = keyboard_storitaling(project_id=projectID)
+            bot.edit_message_text(chat_id=userID,message_id=message_id, text='Меню сторителинга', reply_markup=keyboard) 
+            
         if call[1] == 'selectProject':
             my_project(userID)
      
@@ -192,18 +224,15 @@ def callback_inline(callFull):
         sqlColumn = call[1]
         url = sql.select_query('project', f'time_epoh = {projectID}')[0][sqlColumn]
         keyboard = keyboard_edit(sqlColumn, call[0])
-        bot.send_message(userID, text=f'Текущие значение: {url}', reply_markup=keyboard)            
+        bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: {url}', reply_markup=keyboard)            
 
     if call[0] == 'edit':
-        bot.send_message(userID, text=f'Пришлите новое значение',)            
-        sql.set_payload(userID,f'edit_{call[1]}')
-
-
-        
+        bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Пришлите новое значение',)            
+        sql.set_payload(userID,f'edit_{call[1]}')   
         
     if call[0] == 'contentCreate':
         sql.set_payload(userID, 'create_content')
-        create_content(call[1],userID)
+        create_content(call[1],userID,message_id)
         bot.answer_callback_query(callFull.id)
         return 0
     
@@ -214,21 +243,23 @@ def callback_inline(callFull):
                 'time_epoh':time_epoch(),
                 'project_id':projectID,
                 'text': USERS_ANSWER_GPT[userID],
-                'type_content': call[1]
+                'type_content': call[2]
             }
             sql.insert_query('content', rows=row)
-            bot.send_message(userID, 'Ваш контент сохранен',reply_markup=create_menu_keyboard())
+            bot.edit_message_text(chat_id=userID,message_id=message_id,text='Ваш контент сохранен',reply_markup=keyboard_menu_project())
             # bot.answer_callback_query(callFull.id)
             pass
             #save last message gpt
         if call[1] == 'again':
-            create_content(call[2],userID)
+            create_content(call[2],userID,message_id)
             # bot.answer_callback_query(callFull.id)
             pass
+   
     bot.answer_callback_query(callFull.id)
 
-    
-
+#TODO 
+# a = {'[about the product]=': 'prod_info',
+#      }
 
 @bot.message_handler(content_types=['text'])
 @logger.catch
@@ -238,6 +269,8 @@ def any_message(message):
     #text = message.text.lower()
     text = message.text.lower()
     userID= message.chat.id
+    message_id = message.message_id
+    print(message_id)
     # dicVOLODIA= {message.text.upper(): max(lambda: message.body[::-1] / len(message))}
     username = message.from_user.username
     payload = sql.get_payload(userID)
@@ -290,9 +323,9 @@ def any_message(message):
                 'time_epoh': time_epoch(),
                 'user_id': userID,
                 'name': QUESTS_USERS[userID][0],
-                'prop1': QUESTS_USERS[userID][1],
-                'prop2': QUESTS_USERS[userID][2],
-                'prop3': QUESTS_USERS[userID][3],
+                # 'prop1': QUESTS_USERS[userID][1],
+                # 'prop2': QUESTS_USERS[userID][2],
+                # 'prop3': QUESTS_USERS[userID][3],
             }
             sql.replace_query('project', row)
             bot.send_message(userID,f'ваши ответы {QUESTS_USERS[userID]}',)
@@ -314,7 +347,7 @@ def any_message(message):
         return 0 
     
     if text == 'мои проекты':
-        my_project(userID)
+        my_project(userID,message_id)
         return 0 
 
     add_message_to_history(userID, 'user', text)

@@ -69,3 +69,13 @@ def keyboard_content_plan(project_id:int):
     keyboard.row(telebot.types.InlineKeyboardButton(text='Создать новый', callback_data=f"contenPlan_create")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"project_{project_id}")) 
     return keyboard
+
+def keyboard_storitaling(project_id:int):
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Текущий', callback_data=f"storitaling_now")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Создать новый', callback_data=f"storitaling_create")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"project_{project_id}")) 
+    return keyboard
+
+def create_keyboard_from_sql(forSubjectType:str):
+    pass

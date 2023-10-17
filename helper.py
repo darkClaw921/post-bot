@@ -2,6 +2,7 @@
 from loguru import logger
 from datetime import datetime
 from workRedis import *
+import time
 # any
 def time_epoch():
     from time import mktime
@@ -17,6 +18,18 @@ def remove_empty_lines(text):
     non_empty_lines = (line for line in stripped_lines if line)  # Отбор только непустых строк
     return "\n".join(non_empty_lines) 
 
+def timestamp_to_date(timestap, pattern = '%Y-%m-%dT%H:%M:%SZ'):
+   
+    """timestamp
+
+    Returns:
+        str: %Y-%m-%dT%H:%M:%SZ
+    """
+    a = time.gmtime(timestap)
+    date_time = datetime(*a[:6])
+    date_string = date_time.strftime(pattern)
+    
+    return date_string
 
 def sum_dict_values(dict1, dict2):
     result = {}
