@@ -1,5 +1,7 @@
 import telebot
-
+from workYDB import Ydb
+from helper import SubjectType
+sql = Ydb()
 def create_keyboard_is_row(rows: list):
     keyboard = telebot.types.ReplyKeyboardMarkup(True)
     for row in rows:
@@ -41,13 +43,15 @@ def keyboard_menu_project():
     keyboard.row(telebot.types.InlineKeyboardButton(text='Выбрать проект', callback_data=f"menu_selectProject")) 
     return keyboard
 
-def keyboard_edit(property:str='', typeMenu=''):
+def keyboard_edit(property:str='', backCall=''):
     #property - название колонки в базе 
 
     keyboard = telebot.types.InlineKeyboardMarkup()
     keyboard.row(telebot.types.InlineKeyboardButton(text='Изменить', callback_data=f"edit_{property}")) 
     # можно передать тип меню а потом вернуть на шаг назад
-    keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"menu_{typeMenu}")) 
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"menu_{typeMenu}")) 
+    
+    keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 
     return keyboard
 
 def keyboard_smm_menu(project_id:int):
@@ -77,5 +81,20 @@ def keyboard_storitaling(project_id:int):
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"project_{project_id}")) 
     return keyboard
 
-def create_keyboard_from_sql(forSubjectType:str):
-    pass
+def create_keyboard_menu_from_sql(forSubjectType:str):
+    points = sql.select_query('SubjectsOfDescription', f"subjectsType = '{forSubjectType}'")
+    dic = {}
+    for point in points:
+        dic[point['name']]= f"{forSubjectType}_{point['callback']}"
+    keyboard = create_inlinekeyboard_is_row(dic)
+    return keyboard
+
+def create_keyboard_question_from_sql(subjectID:int):
+    # idSubjectsOfDescription
+    questions = sql.get_question_list_on(subjectID=subjectID)
+    # points = sql.select_query('SubjectsOfDescription', f"subjectsType = '{forSubjectType}'")
+    dic = {}
+    for question in questions:
+        dic[question['Question']] = f"question_{question['id']}"
+    keyboard = create_inlinekeyboard_is_row(dic)
+    return keyboard

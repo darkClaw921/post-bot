@@ -124,7 +124,7 @@ class GPT():
       #model="gpt-3.5-turbo",
       model=self.modelVersion,
       messages=messages,
-      temperature=temp
+      temperature=temp,
       )
     allToken = f'{completion["usage"]["total_tokens"]} токенов использовано всего (вопрос-ответ).'
     allTokenPrice = f'ЦЕНА запроса с ответом :{0.002*(completion["usage"]["total_tokens"]/1000)} $'

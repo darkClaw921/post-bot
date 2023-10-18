@@ -3,6 +3,14 @@ from loguru import logger
 from datetime import datetime
 from workRedis import *
 import time
+from dataclasses import dataclass
+
+@dataclass
+class SubjectType:
+    profileInfo = 'profileInfo'
+    # profileInfoStr = 'profileInfo'
+
+
 # any
 def time_epoch():
     from time import mktime
@@ -66,5 +74,17 @@ def summary(userID, error, isDEBUG):
     add_message_to_history(userID, 'assistant', answer)
 
 
+def find_key_words(text):
+
+    import re
+    # text = "Текст со значениями [1], [2441], [asdfasf]= и [4]"
+
+    pattern = r'\[.*?\]'  # регулярное выражение для поиска значений в формате [*]
+
+    values = re.findall(pattern, text)
+    # print(values)
+    return values
+
 if __name__ == '__main__':
+    find_key_words('s')
     pass

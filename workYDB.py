@@ -28,7 +28,7 @@ def truncate_string(string, max_length):
         return string
 intList = ['all_token', 'all_messages', 'time_epoh', 'time_epoch','token',
            'orderID', 'stock_id','all_token','all_messages','user_id',
-           'project_id']
+           'project_id','idProfile','idQuestionList']
 
 floatList = ['token_price','amount','price_open',
               'price_insert','price_close','bb_bu','all_price',
@@ -216,8 +216,11 @@ class Ydb:
         print('context',context)
         return context
    
-    def get_payload(self, whereID: int):
-        query = f'SELECT payload FROM user WHERE id = {whereID}'
+    def get_payload(self, whereID: int, isBackPayload=False):
+        if isBackPayload:
+            query = f'SELECT back_payload FROM user WHERE id = {whereID}'
+        else:
+            query = f'SELECT payload FROM user WHERE id = {whereID}'
         print(query)
 
         def a(session):
@@ -229,7 +232,10 @@ class Ydb:
         # string = b_string.decode('utf-8')
         # IndexError: list index out of range если нет данныйх
         #print('b',b)
-        rez = b[0].rows[0]['payload']
+        if isBackPayload:
+            rez = b[0].rows[0]['back_payload']
+        else:
+            rez = b[0].rows[0]['payload']
         #print('rez',rez)
         return rez
     
@@ -245,9 +251,20 @@ class Ydb:
         rez = b[0].rows[0]['project_id']
         return rez
     
-    def set_payload(self, userID: int, entity:str):
+    def set_payload(self, userID: int, entity:str, isBackPayload=False):
+        # if isBackPayload:
+        oldPayload=self.get_payload(userID)
+        # query = f'UPDATE user SET back_payload = "{oldPayload}" WHERE id = {userID}' 
+        row ={
+            'back_payload': oldPayload
+        }
+        self.update_query('user', row, where=f'id = {userID}')
+
         query = f'UPDATE user SET payload = "{entity}" WHERE id = {userID}'
         #print(query)
+        
+         
+        
         def a(session):
             session.transaction(ydb.SerializableReadWrite()).execute(
                 query,
@@ -339,8 +356,11 @@ class Ydb:
         answers = []
         questions = self.get_question_list_on(subjectID=subjectID)
         for question in questions:
-            answer = self.get_answer_on(questionID=question['id'], forProfileID=forProfileID)[0]
-            answers.append(answer)
+            answer = self.get_answer_on(questionID=question['id'], forProfileID=forProfileID)[0]['Answer']
+            
+            # answers.append(answer)
+            answers.append({'tag':question['Tag'],
+                             'answer':answer})
         return answers
     
     def plus_query_user(self, tableName: str, rows: dict, where: str):
@@ -386,7 +406,7 @@ if __name__ == '__main__':
     sql = Ydb()
     # a = sql.get_question_list_on(subjectID=1)
     # a = sql.get_answer_on(questionID=1, forProfileID=1696864099755)
-    a = sql.get_answer_list_on(subjectID=1, forProfileID=1696864099755)
+    a = sql.get_answer_list_on(subjectID=1, forProfileID=1697037106543)
     pprint(a)
     pass
     # a = Ydb()

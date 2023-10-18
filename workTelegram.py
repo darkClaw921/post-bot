@@ -12,6 +12,7 @@ from createKeyboard import *
 from helper import *
 from workRedis import *
 
+
 from questions import questionNewProject
 
 load_dotenv()
@@ -19,8 +20,8 @@ isDEBUG = True
 
 logger.add(sys.stderr, format="{time} {level} {message}", level="INFO")
 logger.add("workTelegram.log", rotation="50 MB")
-# gpt = GPT()
-# GPT.set_key(os.getenv('KEY_AI'))
+gpt = GPT()
+GPT.set_key(os.getenv('KEY_AI'))
 bot = telebot.TeleBot(os.getenv('TELEBOT_TOKEN'))
 sql = workYDB.Ydb()
 
@@ -29,7 +30,7 @@ TYPE_QUESTIONS = {'newProject': questionNewProject,}
 URL_USERS = {}
 QUESTS_USERS = {}
 COUNT_QUESTS_USER={}
-PROMT_URLS = {'post': '',
+PROMT_URLS = {'post': 'https://docs.google.com/document/d/1GWms8u_4xQmvbGwRCk61t73b8YFq3F0JIuHTPyE1KrU/edit?usp=sharing',
             'stories':''}
 USERS_ANSWER_GPT={}
 # MODEL_URL= 'https://docs.google.com/document/d/1M_i_C7m3TTuKsywi-IOMUN0YD0VRpfotEYNp1l2CROI/edit?usp=sharing'
@@ -37,7 +38,7 @@ USERS_ANSWER_GPT={}
 # #print(f'{urls_photo=}')
 # model_index=gpt.load_search_indexes(MODEL_URL)
 # # model_project = gpt.create_embedding(gsText)
-# PROMT_URL = 'https://docs.google.com/document/d/10PvyALgUYLKl-PYwwe2RZjfGX5AmoTvfq6ESfemtFGI/edit?usp=sharing'
+PROMT_URL = 'https://docs.google.com/document/d/1GWms8u_4xQmvbGwRCk61t73b8YFq3F0JIuHTPyE1KrU/edit?usp=sharing'
 # model= gpt.load_prompt(PROMT_URL)
 
 # PROMT_URL_SUMMARY ='https://docs.google.com/document/d/1XhSDXvzNKA9JpF3QusXtgMnpFKY8vVpT9e3ZkivPePE/edit?usp=sharing'
@@ -117,6 +118,7 @@ def my_project(userID, messageID):
     bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic) )
 
 def create_content(typeContent, userID, messageID):
+    
     global USERS_ANSWER_GPT
     projectID = sql.get_project_id(userID)
     project = sql.select_query('project',f'time_epoh={projectID}')[0] 
@@ -124,7 +126,22 @@ def create_content(typeContent, userID, messageID):
     promtURL = PROMT_URLS[typeContent]
     #promt load
     #gpt answer
-    answerGPT = 'answerGPT'
+    promt = gpt.load_prompt(promtURL)
+    print(promt)
+    keys = find_key_words(promt)
+    print(keys)
+    answers = sql.get_answer_list_on(subjectID=1, forProfileID=projectID)
+    sql.get_answer_on
+    for key in keys:
+        for answer in answers:
+            key1=key.replace('[','').replace(']','')
+            if answer['tag'] == key1:
+                promt = promt.replace(key,answer['answer'])
+    print(promt)
+    # text = {"role": "user", "content": 'как можно точнее'}
+    bot.send_message(userID, f'Генерация контента')
+    answerGPT = gpt.answer(promt,[])[0]
+    # answerGPT = 'answerGPT'
     createContent = ''
     keyboard=keyboard_create_content(typeContent)
     bot.send_message(userID, f'Ваш контент: {answerGPT}',reply_markup=keyboard)
@@ -203,7 +220,9 @@ def callback_inline(callFull):
     
     if call[0] == 'menu':
         if call[1] == 'smm':
-            keyboard = keyboard_smm_menu(project_id=projectID)
+            
+            # keyboard = keyboard_smm_menu(project_id=projectID)
+            keyboard = create_keyboard_menu_from_sql(SubjectType.profileInfo)
             bot.edit_message_text(chat_id=userID,message_id=message_id, text='Меню настройки SMM', reply_markup=keyboard)
             
         if call[1] == 'contentPlan':
@@ -216,19 +235,41 @@ def callback_inline(callFull):
             
         if call[1] == 'selectProject':
             my_project(userID)
-     
+        sql.set_payload(userID,callFull.data)
+        
         bot.answer_callback_query(callFull.id) 
     
-    if call[0] == 'smm':
+    if call[0] == 'profileInfo':
 
-        sqlColumn = call[1]
-        url = sql.select_query('project', f'time_epoh = {projectID}')[0][sqlColumn]
-        keyboard = keyboard_edit(sqlColumn, call[0])
-        bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: {url}', reply_markup=keyboard)            
+        
+        subjectsCallback = call[1]
+        subjectID = sql.select_query('SubjectsOfDescription',f"callback = '{subjectsCallback}'")[0]['id']
+        # sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
+        # questions = sql.get_question_list_on(subjectID=subjectID)
+        keyboard = create_keyboard_question_from_sql(subjectID=subjectID) 
+        # url = sql.select_query('project', f'time_epoh = {projectID}')[0][sqlColumn]
+        # keyboard = keyboard_edit(sqlColumn, call[0])
+        # bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: {url}', reply_markup=keyboard)            
+        bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Выберите нужное', reply_markup=keyboard)            
+
+    if call[0] == 'question':
+        # backPayload = sql.set
+        sql.set_payload(userID,callFull.data)
+        questionID = int(call[1])
+        
+        try:
+            oldAnswer = sql.get_answer_on(questionID=questionID,forProfileID=projectID)[0]['Answer']
+        except:
+            oldAnswer = ''
+        
+        backCall = sql.get_payload(userID,isBackPayload=True)
+        keyboard = keyboard_edit(property=callFull.data,backCall=backCall)
+        bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: \n{oldAnswer}', reply_markup=keyboard)            
+
 
     if call[0] == 'edit':
         bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Пришлите новое значение',)            
-        sql.set_payload(userID,f'edit_{call[1]}')   
+        sql.set_payload(userID,f'edit_{call[1]}_{call[2]}')   
         
     if call[0] == 'contentCreate':
         sql.set_payload(userID, 'create_content')
@@ -275,18 +316,39 @@ def any_message(message):
     username = message.from_user.username
     payload = sql.get_payload(userID)
 
+    if text == 'мои проекты':
+        my_project(userID,message_id)
+        return 0
+    
     if payload.startswith('edit'):
         projectID = sql.get_project_id(userID)
-        row = {
-            payload.split('_')[1]: text
-        }
-        sql.update_query('project',row,f'time_epoh={projectID}')
+        questionID = int(payload.split('_')[2])
+        type = payload.split('_')[1]
+        if type == 'question':
+            row = {
+                'Answer': text
+            }
+        else:
+            row ={}
+        oldAnswer = sql.get_answer_on(questionID=questionID,forProfileID=projectID)
+        print(oldAnswer)
+        if oldAnswer == []:
+            row = {
+                'Answer': text,
+                'id': time_epoch(),
+                'idProfile': projectID,
+                'idQuestionList':questionID,
+            }
+            sql.insert_query('ProfileDescription',rows=row)
+        else:
+            sql.update_query('ProfileDescription',row,f'idProfile={projectID} and idQuestionList = {questionID}')
         bot.send_message(userID, 'Значание сохранено',reply_markup=keyboard_menu_project()) 
         sql.set_payload(userID,'')
         return 0
     
     
-
+# SubjectType.profileInfo
+    
     if text == 'добавить новый проект':
         sql.set_payload(userID, 'quest_1_newProject') 
         payload='quest_1_newProject'
@@ -328,7 +390,8 @@ def any_message(message):
                 # 'prop3': QUESTS_USERS[userID][3],
             }
             sql.replace_query('project', row)
-            bot.send_message(userID,f'ваши ответы {QUESTS_USERS[userID]}',)
+            # bot.send_message(userID,f'ваши ответы {QUESTS_USERS[userID]}',)
+            bot.send_message(userID,f'Проект зарегистрирован',)
             sql.set_payload(userID, '') 
             return 0
         
@@ -346,9 +409,7 @@ def any_message(message):
 
         return 0 
     
-    if text == 'мои проекты':
-        my_project(userID,message_id)
-        return 0 
+     
 
     add_message_to_history(userID, 'user', text)
     history = get_history(str(userID))
@@ -418,7 +479,6 @@ def any_message(message):
             'token_price': allTokenPrice,
             'TEXT': f'Менеджер: {answer}'}
     sql.insert_query('all_user_dialog',  rows)
-
 
 print(f'[OK]')
 bot.infinity_polling()
