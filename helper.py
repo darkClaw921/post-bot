@@ -85,6 +85,17 @@ def find_key_words(text):
     # print(values)
     return values
 
+def find_key_words(text):
+
+    import re
+    # text = "Текст со значениями [1], [2441], [asdfasf]= и [4]"
+
+    pattern = r'\[.*?\]'  # регулярное выражение для поиска значений в формате [*]
+
+    values = re.findall(pattern, text)
+    # print(values)
+    return values
+
 if __name__ == '__main__':
     find_key_words('s')
     pass
