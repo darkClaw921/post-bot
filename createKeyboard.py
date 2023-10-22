@@ -41,6 +41,7 @@ def keyboard_menu_project():
     keyboard.row(telebot.types.InlineKeyboardButton(text='Контент-план', callback_data=f"menu_contentPlan")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Сторителлинг', callback_data=f"menu_storitaling")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Выбрать проект', callback_data=f"menu_selectProject")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Удалить проект', callback_data=f"menu_deleteProject")) 
     return keyboard
 
 def keyboard_edit(property:str='', backCall=''):
@@ -81,20 +82,24 @@ def keyboard_storitaling(project_id:int):
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"project_{project_id}")) 
     return keyboard
 
-def create_keyboard_menu_from_sql(forSubjectType:str):
+def create_keyboard_menu_from_sql(forSubjectType:str,backCall:str='project'):
     points = sql.select_query('SubjectsOfDescription', f"subjectsType = '{forSubjectType}'")
     dic = {}
     for point in points:
         dic[point['name']]= f"{forSubjectType}_{point['callback']}"
     keyboard = create_inlinekeyboard_is_row(dic)
+    keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 
     return keyboard
 
-def create_keyboard_question_from_sql(subjectID:int):
+def create_keyboard_question_from_sql(subjectID:int,backCall:str='project'):
     # idSubjectsOfDescription
     questions = sql.get_question_list_on(subjectID=subjectID)
     # points = sql.select_query('SubjectsOfDescription', f"subjectsType = '{forSubjectType}'")
+    # sql.get_payload()
     dic = {}
     for question in questions:
-        dic[question['Question']] = f"question_{question['id']}"
+        # dic[question['Question']] = f"question_{question['id']}"
+        dic[question['nameButton']] = f"question_{question['id']}"
     keyboard = create_inlinekeyboard_is_row(dic)
+    keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 
     return keyboard

@@ -4,12 +4,23 @@ from datetime import datetime
 from workRedis import *
 import time
 from dataclasses import dataclass
-
+from pprint import pprint
+from promtTXT import target
 @dataclass
 class SubjectType:
-    profileInfo = 'profileInfo'
-    # profileInfoStr = 'profileInfo'
+    class Profile_info:
+        class Target:
+            lastIDquestions = 6
 
+        class Product:
+           lastIDquestions = 10
+        class Tov:
+           lastIDquestions = 16
+
+        type = 'profileInfo'
+        id = 1
+    # profileInfoStr = 'profileInfo'
+    
 
 # any
 def time_epoch():
@@ -85,17 +96,34 @@ def find_key_words(text):
     # print(values)
     return values
 
-def find_key_words(text):
+def find_text_from_promt(forSubjectType, text):
+    startText = "{"+forSubjectType+"}"
+    endText = "{"+forSubjectType+"}"
+    start_index = text.find(str(startText))
+    end_index = text.rfind(str(endText))
+ 
+    if start_index != -1 and end_index != -1:  # Если найдены оба индекса
+        start_index += len(startText)
+        result = text[start_index:end_index].strip()  # Извлекаем текст между {profileInfo}
+        # print(result)
+        return result
+    else:
+        print("Не найдено")
 
-    import re
-    # text = "Текст со значениями [1], [2441], [asdfasf]= и [4]"
+def create_dict_questions(questions:list)->dict:
+    dic = {}
+    for i, quest in enumerate(questions):
+        dic[i+1]={'tag': quest['Tag'],
+                'text': quest['Question']}
+    pprint(dic)
+    return dic
 
-    pattern = r'\[.*?\]'  # регулярное выражение для поиска значений в формате [*]
-
-    values = re.findall(pattern, text)
-    # print(values)
-    return values
 
 if __name__ == '__main__':
-    find_key_words('s')
+    text = target
+    # sybjectType = '{profileInfo}'
+    # sybjectType = 'profileInfo'
+    # find_text_from_promt(forSubjectType=sybjectType, text=text)
+    a = find_key_words(text)
+    print(a)
     pass

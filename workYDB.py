@@ -2,7 +2,7 @@ import os
 import ydb
 import ydb.iam
 from dotenv import load_dotenv
-from helper import sum_dict_values
+from helper import sum_dict_values, create_dict_questions
 from pprint import pprint
 #from helper import *
 load_dotenv()
@@ -28,7 +28,7 @@ def truncate_string(string, max_length):
         return string
 intList = ['all_token', 'all_messages', 'time_epoh', 'time_epoch','token',
            'orderID', 'stock_id','all_token','all_messages','user_id',
-           'project_id','idProfile','idQuestionList']
+           'project_id','idProfile','idQuestionList','subjectID']
 
 floatList = ['token_price','amount','price_open',
               'price_insert','price_close','bb_bu','all_price',
@@ -251,6 +251,18 @@ class Ydb:
         rez = b[0].rows[0]['project_id']
         return rez
     
+    def get_subject_id(self, whereID: int):
+        query = f'SELECT subjectID FROM user WHERE id = {whereID}'
+        print(query)
+        def a(session):
+            return session.transaction().execute(
+                query,
+                commit_tx=True,
+            )
+        b = pool.retry_operation_sync(a)
+        rez = b[0].rows[0]['subjectID']
+        return rez
+    
     def set_payload(self, userID: int, entity:str, isBackPayload=False):
         # if isBackPayload:
         oldPayload=self.get_payload(userID)
@@ -274,6 +286,16 @@ class Ydb:
     
     def set_project_id(self, userID: int, entity:int):
         query = f'UPDATE user SET project_id = {entity} WHERE id = {userID}'
+        #print(query)
+        def a(session):
+            session.transaction(ydb.SerializableReadWrite()).execute(
+                query,
+                commit_tx=True,
+            )
+        return pool.retry_operation_sync(a)
+    
+    def set_subject_id(self, userID: int, entity:int):
+        query = f'UPDATE user SET subjectID = {entity} WHERE id = {userID}'
         #print(query)
         def a(session):
             session.transaction(ydb.SerializableReadWrite()).execute(
@@ -404,10 +426,11 @@ def handler(event, context):
 
 if __name__ == '__main__':
     sql = Ydb()
-    # a = sql.get_question_list_on(subjectID=1)
+    a = sql.get_question_list_on(subjectID=1)
     # a = sql.get_answer_on(questionID=1, forProfileID=1696864099755)
-    a = sql.get_answer_list_on(subjectID=1, forProfileID=1697037106543)
-    pprint(a)
+    # a = sql.get_answer_list_on(subjectID=1, forProfileID=1697037106543)
+    create_dict_questions(a)
+    # pprint(a)
     pass
     # a = Ydb()
     #b = a.get_currency_pair(2)

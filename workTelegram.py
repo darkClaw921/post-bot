@@ -40,7 +40,7 @@ USERS_ANSWER_GPT={}
 # # model_project = gpt.create_embedding(gsText)
 PROMT_URL = 'https://docs.google.com/document/d/1GWms8u_4xQmvbGwRCk61t73b8YFq3F0JIuHTPyE1KrU/edit?usp=sharing'
 # model= gpt.load_prompt(PROMT_URL)
-
+PROMT_URL_ONBORDING = 'https://docs.google.com/document/d/1qgkFSTg6co9-JvLRlUON2vqm7rLI0QTS_5SVFvsvWBw/edit?usp=sharing'
 # PROMT_URL_SUMMARY ='https://docs.google.com/document/d/1XhSDXvzNKA9JpF3QusXtgMnpFKY8vVpT9e3ZkivPePE/edit?usp=sharing'
 # #PROMT_PODBOR_HOUSE = 'https://docs.google.com/document/d/1WTS8SQ2hQSVf8q3trXoQwHuZy5Q-U0fxAof5LYmjYYc/edit?usp=sharing'
 
@@ -64,13 +64,16 @@ def add_new_model(message):
 
 @bot.message_handler(commands=['help', 'start'])
 def say_welcome(message):
+    global QUESTS_USERS
+
+    QUESTS_USERS[message.chat.id]= []
     username = message.from_user.username
     row = {'id': 'Uint64', 'MODEL_DIALOG': 'String', 'TEXT': 'String'}
     sql.create_table(str(message.chat.id), row)
     row = {'id': message.chat.id, 'nickname':username, 'payload': ''}
     sql.replace_query('user', row)
-    
-    text = """Здравствуйте, я AI ассистент """
+    # QUESTS_USERS[userID] 
+    text = """Здравствуйте, я AI ассистент по созданию контента """
     bot.send_message(message.chat.id, text, 
                      parse_mode='markdown',
                      reply_markup= create_menu_keyboard())
@@ -108,7 +111,7 @@ def send_button(message):
 
 def my_project(userID, messageID):
     try:
-            projects = sql.select_query('project', f'user_id = {userID}') 
+        projects = sql.select_query('project', f'user_id = {userID}') 
     except:
         bot.edit_message_text(chat_id=userID,message_id=messageID,text='Опа, похоже кто-то жмет туда куда не следует') 
     dic = {}
@@ -116,6 +119,17 @@ def my_project(userID, messageID):
         dic.setdefault(project['name'], f"project_{project['time_epoh']}")
 
     bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic) )
+
+def delete_my_project(userID, messageID, projectID):
+    projects = sql.select_query('project', f'user_id = {userID}') 
+    sql.delete_query('project',where=f'time_epoh = {projectID}')
+    sql.delete_query('ProfileDescription', where=f'idProfile = {projectID}')
+    # return 0 
+    
+    dic = {}
+    for project in projects:
+        dic.setdefault(project['name'], f"project_{project['time_epoh']}")
+    bot.edit_message_text(userID,message_id=messageID,text='Проект и все связанные сущности удалены',reply_markup=create_inlinekeyboard_is_row(dic) )
 
 def create_content(typeContent, userID, messageID):
     
@@ -131,7 +145,7 @@ def create_content(typeContent, userID, messageID):
     keys = find_key_words(promt)
     print(keys)
     answers = sql.get_answer_list_on(subjectID=1, forProfileID=projectID)
-    sql.get_answer_on
+    # sql.get_answer_on
     for key in keys:
         for answer in answers:
             key1=key.replace('[','').replace(']','')
@@ -141,6 +155,7 @@ def create_content(typeContent, userID, messageID):
     # text = {"role": "user", "content": 'как можно точнее'}
     bot.send_message(userID, f'Генерация контента')
     answerGPT = gpt.answer(promt,[])[0]
+    add_message_to_history(userID, 'assistant', answerGPT)
     # answerGPT = 'answerGPT'
     createContent = ''
     keyboard=keyboard_create_content(typeContent)
@@ -161,15 +176,16 @@ def callback_inline(callFull):
     
     message_id = callFull.message.message_id
     chat_id = callFull.message.chat.id
+    backCall = sql.get_payload(userID,True)
     # if call[0] == 'type':
     # promtURLpost = ''
     # promtURLstories = ''
     # bot.edit_message_text(chat_id=chat_id, message_id=message_id, text="Новый текст сообщения")
     
     
-    if call[0] == 'project':
+    if call[0]=='project':
         project = sql.select_query('project',f'time_epoh={call[1]}')[0]
-        sql.set_payload(userID, f'projectEnter_{call[1]}')
+        sql.set_payload(userID, f'project_{call[1]}')
         sql.set_project_id(userID, f'{call[1]}')
         # project['id']
         # sql.select_query('asdas', where answer == 'asdf' and project_id == 1234,)
@@ -220,9 +236,14 @@ def callback_inline(callFull):
     
     if call[0] == 'menu':
         if call[1] == 'smm':
-            
+            # backCall = sql.get_payload(userID)
             # keyboard = keyboard_smm_menu(project_id=projectID)
-            keyboard = create_keyboard_menu_from_sql(SubjectType.profileInfo)
+            print(f'{backCall=}')
+            if backCall == '':
+                backCall = sql.get_payload(userID)
+            print(f'{backCall=}')
+
+            keyboard = create_keyboard_menu_from_sql('profileInfo' , backCall=backCall)
             bot.edit_message_text(chat_id=userID,message_id=message_id, text='Меню настройки SMM', reply_markup=keyboard)
             
         if call[1] == 'contentPlan':
@@ -235,6 +256,11 @@ def callback_inline(callFull):
             
         if call[1] == 'selectProject':
             my_project(userID)
+        
+        if call[1] == 'deleteProject':
+            delete_my_project(userID=userID,messageID=message_id ,projectID=projectID)
+        
+
         sql.set_payload(userID,callFull.data)
         
         bot.answer_callback_query(callFull.id) 
@@ -246,7 +272,7 @@ def callback_inline(callFull):
         subjectID = sql.select_query('SubjectsOfDescription',f"callback = '{subjectsCallback}'")[0]['id']
         # sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
         # questions = sql.get_question_list_on(subjectID=subjectID)
-        keyboard = create_keyboard_question_from_sql(subjectID=subjectID) 
+        keyboard = create_keyboard_question_from_sql(subjectID=subjectID, backCall=backCall) 
         # url = sql.select_query('project', f'time_epoh = {projectID}')[0][sqlColumn]
         # keyboard = keyboard_edit(sqlColumn, call[0])
         # bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: {url}', reply_markup=keyboard)            
@@ -272,6 +298,8 @@ def callback_inline(callFull):
         sql.set_payload(userID,f'edit_{call[1]}_{call[2]}')   
         
     if call[0] == 'contentCreate':
+        clear_history(str(userID))
+        # get_history(str(userID))
         sql.set_payload(userID, 'create_content')
         create_content(call[1],userID,message_id)
         bot.answer_callback_query(callFull.id)
@@ -302,6 +330,61 @@ def callback_inline(callFull):
 # a = {'[about the product]=': 'prod_info',
 #      }
 
+
+
+def create_onbord_for(subjectID, userID, projectID, message_id):
+    subject = {
+        1: 'TargetAudience',
+        2: 'ProductAdvantages',
+        3: 'ToneOfVoice'
+    }
+    from promtTXT import target
+    # bot.send_message(userID,text='Готово')
+    # promt = gpt.load_prompt()
+    subjectCallBack = sql.select_query('SubjectsOfDescription',f'id ={subjectID}')[0]['callback']
+    promtAll = gpt.load_prompt(PROMT_URL_ONBORDING)
+    # print(promt)
+    logger.debug(f'{subjectCallBack=}')
+    promt = find_text_from_promt(forSubjectType=subjectCallBack, text=promtAll)
+    print(f'{promt=}')
+    keys = find_key_words(promt)
+    print(f'{keys=}') 
+    answers = sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
+    
+    for key in keys:
+        for answer in answers:
+            key1=key.replace('[','').replace(']','')
+            if answer['tag'] == key1:
+                promt = promt.replace(key,answer['answer'])
+    print(promt)
+    # text = {"role": "user", "content": 'как можно точнее'}
+    bot.send_message(userID, f'Формирую описание ЦА…')
+    answerGPT = gpt.answer(promt,[])[0]
+
+    add_long_message(str(userID),subjectCallBack, answerGPT)
+
+    print(f'{answerGPT=}')
+    # answer = gpt.answer(PROMT_URL,history)[0]  
+    bot.send_message(userID,text=answerGPT,) 
+    my_project(userID,message_id)
+    
+    numQuestion = int(sql.get_payload(userID).split('_')[1])
+    if answer == []:
+        row = {
+            'id':time_epoch(),
+            'idProfile': sql.get_project_id(userID),
+            'Answer': text,
+            'idQuestionList': numQuestion
+        }
+        sql.insert_query('ProfileDescription', rows=row)
+    else:
+        row = {
+            'Answer': text,
+        }
+        sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}")
+    return 0 
+
+
 @bot.message_handler(content_types=['text'])
 @logger.catch
 def any_message(message):
@@ -315,6 +398,9 @@ def any_message(message):
     # dicVOLODIA= {message.text.upper(): max(lambda: message.body[::-1] / len(message))}
     username = message.from_user.username
     payload = sql.get_payload(userID)
+    projectID = sql.get_project_id(userID)
+    subjectID= sql.get_subject_id(userID)
+    # text = asdlkasl;kfjlas;
 
     if text == 'мои проекты':
         my_project(userID,message_id)
@@ -347,98 +433,156 @@ def any_message(message):
         return 0
     
     
+
+
 # SubjectType.profileInfo
+    # subjectID = 1
     
+
     if text == 'добавить новый проект':
         sql.set_payload(userID, 'quest_1_newProject') 
         payload='quest_1_newProject'
         
-        try:
-            QUESTS_USERS[userID].append([])
-        except:
-            QUESTS_USERS.setdefault(userID,[])
-        
-        try:
-            COUNT_QUESTS_USER[userID]['real'] += 1  
-        except:
-            COUNT_QUESTS_USER.setdefault(userID, {
-                                                 'real': 1,
-                                                 'profNastil': 1,
-                                                 'evroShtak':1})
-        numberZabor = COUNT_QUESTS_USER[userID]['real'] 
-        bot.send_message(userID,f'Пожалуйста заполните все вопросы',)
-        # return 0
+        COUNT_QUESTS_USER[userID] = 1
+
+        bot.send_message(userID,f'Название проекта',)
+        return 0
     
+    if payload.startswith('quest_1_newProject'):
+        
+        proID = time_epoch() 
+        row= {
+            'time_epoh': proID,
+            'user_id': userID,
+            'name': text,
+        }
+        sql.replace_query('project', row)
+        bot.send_message(userID,f'Проект зарегистрирован',)
+        
+        sql.set_payload(userID, '1quest_1') 
+        sql.set_project_id(userID=userID, entity=proID)
+        
+        questions = sql.get_question_list_on(subjectID=1)
+        questions = create_dict_questions(questions)
+        sql.set_subject_id(userID=userID, entity=1)
+
+        textQuestion = questions[1]['text']
+        bot.send_message(userID,text=textQuestion) 
+        return 0
+
+    
+
+    #нужно для перехода в следующую цепочку вопросов
+    if payload.startswith('1quest_1'):
+        payload = 'quest_1'
+        sql.set_payload(userID, 'quest_1')  
+
     if payload.startswith('quest'):
-        if text != 'добавить новый проект':
-            QUESTS_USERS[userID].append(text)
-        quest = payload.split('_')[1]
-        logger.debug(f'{quest=}')
-        logger.debug(f'{text=}')
-        typeQuest = payload.split('_')[2]
-        listQuestions = TYPE_QUESTIONS[typeQuest]
-        try:
-            bot.send_message(userID,listQuestions[quest]['text'],reply_markup=listQuestions[quest]['keyboard']) 
-        except Exception as e:
-            # Кончились вопросы
-            row= {
-                'time_epoh': time_epoch(),
-                'user_id': userID,
-                'name': QUESTS_USERS[userID][0],
-                # 'prop1': QUESTS_USERS[userID][1],
-                # 'prop2': QUESTS_USERS[userID][2],
-                # 'prop3': QUESTS_USERS[userID][3],
+        # questions1 = sql.get_question_list_on(subjectID=subjectID)
+        questions1 = sql.get_question_list_on(subjectID=1)
+        # questions2 = sql.get_question_list_on(subjectID=2)
+        # questions3 = sql.get_question_list_on(subjectID=3)
+        questions=questions1
+        # questions.extend(questions2)
+        # questions.extend(questions3)
+        # pprint(questions)
+        # try:
+        questions = create_dict_questions(questions)
+        numQuestion = int(payload.split('_')[1])
+        logger.debug(f'ответ на {numQuestion} вопрос {text}')
+
+        if numQuestion in [SubjectType.Profile_info.Target.lastIDquestions,
+                            SubjectType.Profile_info.Tov.lastIDquestions,
+                            SubjectType.Profile_info.Product.lastIDquestions,]:
+            answer = sql.get_answer_on(questionID=numQuestion, forProfileID=projectID)
+            if answer == []:
+                row = {
+                    'id':time_epoch(),
+                    'idProfile': sql.get_project_id(userID),
+                    'Answer': text,
+                    'idQuestionList': numQuestion
+                }
+                sql.insert_query('ProfileDescription', rows=row)
+            else:
+                row = {
+                    'Answer': text,
+                }
+                sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}") 
+            #TODO 
+            #просто по последнему вопросу генерируем
+            create_onbord_for(subjectID=subjectID,userID=userID,projectID=projectID, message_id=message_id)
+            # sql.get
+            #TODO 
+            #и установать payload
+            subjectID +=1
+            #TODO
+            #subjectID взять количество из базы потом 
+        # if numQuestion !=1:
+        # bot.send_message(userID,text=textQuestion,)
+        # else:
+        #     textQuestion = questions[2]['text']
+        #     bot.send_message(userID,text=textQuestion,) 
+        
+        
+        answer = sql.get_answer_on(questionID=numQuestion, forProfileID=projectID)
+        
+        if answer == []:
+            row = {
+                'id':time_epoch(),
+                'idProfile': sql.get_project_id(userID),
+                'Answer': text,
+                'idQuestionList': numQuestion
             }
-            sql.replace_query('project', row)
-            # bot.send_message(userID,f'ваши ответы {QUESTS_USERS[userID]}',)
-            bot.send_message(userID,f'Проект зарегистрирован',)
-            sql.set_payload(userID, '') 
-            return 0
+            sql.insert_query('ProfileDescription', rows=row)
+        else:
+            row = {
+                'Answer': text,
+            }
+            sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}")
         
-        print(f'{int(quest)=} {len(listQuestions)=}')
+        COUNT_QUESTS_USER[userID] += 1
+        try:
+            textQuestion = questions[numQuestion+1]['text']
+        except:
+            bot.send_message(userID,text='весь проект заполнен спасибо',)
+            sql.set_payload(userID,f"")
+            return 0 
         
-        # if int(quest) == len(listQuestions)+1:
-        #         sql.set_payload(userID, 'quest_0') 
-        #         return 0
-        
-        if int(quest) == len(listQuestions)+1:
-            bot.send_message(userID,'Спасибо за ответы, мы просчитаем Ваш проект и свяжемся с вами')
-            sql.set_payload(userID, 'exit')
-        else:    
-            sql.set_payload(userID, f'quest_{int(quest)+1}_{typeQuest}')
-
-        return 0 
+        bot.send_message(userID,text=textQuestion,)
+        sql.set_payload(userID,f"quest_{COUNT_QUESTS_USER[userID]}")
+        return 0
     
-     
-
     add_message_to_history(userID, 'user', text)
     history = get_history(str(userID))
     logger.info(f'история {history}')
 
     #для теста почему-то иногда бывыет битая ссылка
-    try:
-        logger.info(f'{PROMT_URL}')
-        model= gpt.load_prompt(PROMT_URL) 
-    except:
-        model= gpt.load_prompt(PROMT_URL) 
+    # try:
+    #     logger.info(f'{PROMT_URL}')
+    #     model= gpt.load_prompt(PROMT_URL) 
+    # except:
+    #     model= gpt.load_prompt(PROMT_URL) 
 
     lastMessage = history[-1]['content'] 
-    keyboard = keyboard_create_content(payload.split('_')[2])
+    # keyboard = keyboard_create_content(payload.split('_')[2])
+    keyboard = None 
 
     try:
         if text == 'aabb':
             #принудительная саммари диалога
             1/0
-        answer, allToken, allTokenPrice, message_content = gpt.answer_index(model, lastMessage+text, history, model_index,temp=0.5, verbose=0)
+        pprint(history)
+        answer = gpt.answer(PROMT_URL,history)[0]
+        # answer, allToken, allTokenPrice, message_content = gpt.answer_index(model, lastMessage+text, history, model_index,temp=0.5, verbose=0)
 
         logger.info(f'ответ сети если нет ощибок: {answer}')
     except Exception as e:
         #саммари если превышено колтчество токенов
         if isDEBUG : bot.send_message(userID, e)
         history = summary(userID, e) 
-        
-        answer, allToken, allTokenPrice, message_content = gpt.answer_index(model, text, history, model_index,temp=0.5, verbose=0)
-        bot.send_message(message.chat.id, answer)
+        answer = gpt.answer(PROMT_URL,history)[0] 
+        # answer, allToken, allTokenPrice, message_content = gpt.answer_index(model, text, history, model_index,temp=0.5, verbose=0)
+        bot.send_message(message.chat.id, answer, reply_markup=keyboard)
         add_message_to_history(userID, 'assistant', answer)
 
         return 0 
@@ -447,17 +591,17 @@ def any_message(message):
     add_message_to_history(userID, 'assistant', answer)
 
     
-    logger.info(f'{message_content=}')
+    # logger.info(f'{message_content=}')
    
-    bot.send_message(message.chat.id, answer,  parse_mode='markdown')
+    bot.send_message(chat_id=message.chat.id, text=answer,  parse_mode='markdown', reply_markup=keyboard)
     
     now = datetime.now()+timedelta(hours=3)
 
     formatted_date = now.strftime("%Y-%m-%dT%H:%M:%S")
     
     
-    row = {'all_price': float(allTokenPrice), 'all_token': int(allToken), 'all_messages': 1}
-    sql.plus_query_user('user', row, f"id={userID}")
+    # row = {'all_price': float(allTokenPrice), 'all_token': int(allToken), 'all_messages': 1}
+    # sql.plus_query_user('user', row, f"id={userID}")
     
     
     # rows = {'time_epoch': time_epoch(),
@@ -475,10 +619,12 @@ def any_message(message):
             'date': formatted_date,
             'id': userID,
             'nicname': username,
-            'token': allToken,
-            'token_price': allTokenPrice,
+            # 'token': allToken,
+            # 'token_price': allTokenPrice,
+            'token': 0,
+            'token_price': 0,
             'TEXT': f'Менеджер: {answer}'}
-    sql.insert_query('all_user_dialog',  rows)
+    # sql.insert_query('all_user_dialog',  rows)
 
 print(f'[OK]')
 bot.infinity_polling()
