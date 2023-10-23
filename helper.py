@@ -20,7 +20,7 @@ class SubjectType:
         type = 'profileInfo'
         id = 1
     # profileInfoStr = 'profileInfo'
-    
+
 
 # any
 def time_epoch():
@@ -65,6 +65,8 @@ def sum_dict_values(dict1, dict2):
 
     return result
 
+def split_string_by_length(input_string, length):
+    return [input_string[i:i + length] for i in range(0, len(input_string), length)]
 
 #telegram 
 def summary(userID, error, isDEBUG):
@@ -114,7 +116,8 @@ def create_dict_questions(questions:list)->dict:
     dic = {}
     for i, quest in enumerate(questions):
         dic[i+1]={'tag': quest['Tag'],
-                'text': quest['Question']}
+                'text': quest['Question'],
+                'id': quest['id']}
     pprint(dic)
     return dic
 

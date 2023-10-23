@@ -88,6 +88,7 @@ def create_keyboard_menu_from_sql(forSubjectType:str,backCall:str='project'):
     for point in points:
         dic[point['name']]= f"{forSubjectType}_{point['callback']}"
     keyboard = create_inlinekeyboard_is_row(dic)
+    
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 
     return keyboard
 
@@ -101,5 +102,6 @@ def create_keyboard_question_from_sql(subjectID:int,backCall:str='project'):
         # dic[question['Question']] = f"question_{question['id']}"
         dic[question['nameButton']] = f"question_{question['id']}"
     keyboard = create_inlinekeyboard_is_row(dic)
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Онбординг', callback_data=f"onbording_{subjectID}")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 
     return keyboard

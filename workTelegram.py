@@ -45,7 +45,10 @@ PROMT_URL_ONBORDING = 'https://docs.google.com/document/d/1qgkFSTg6co9-JvLRlUON2
 # #PROMT_PODBOR_HOUSE = 'https://docs.google.com/document/d/1WTS8SQ2hQSVf8q3trXoQwHuZy5Q-U0fxAof5LYmjYYc/edit?usp=sharing'
 
 
-
+def send_long_message(userID, text):
+    lstMessage=split_string_by_length(text, 3000)
+    for message in lstMessage:
+        bot.send_message(userID,text=message) 
 
 
 @bot.message_handler(commands=['addmodel'])
@@ -121,15 +124,15 @@ def my_project(userID, messageID):
     bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic) )
 
 def delete_my_project(userID, messageID, projectID):
-    projects = sql.select_query('project', f'user_id = {userID}') 
+     
     sql.delete_query('project',where=f'time_epoh = {projectID}')
     sql.delete_query('ProfileDescription', where=f'idProfile = {projectID}')
     # return 0 
-    
+    projects = sql.select_query('project', f'user_id = {userID}')
     dic = {}
     for project in projects:
         dic.setdefault(project['name'], f"project_{project['time_epoh']}")
-    bot.edit_message_text(userID,message_id=messageID,text='Проект и все связанные сущности удалены',reply_markup=create_inlinekeyboard_is_row(dic) )
+    bot.edit_message_text(chat_id=userID,message_id=messageID,text='Проект и все связанные сущности удалены',reply_markup=create_inlinekeyboard_is_row(dic) )
 
 def create_content(typeContent, userID, messageID):
     
@@ -291,7 +294,19 @@ def callback_inline(callFull):
         backCall = sql.get_payload(userID,isBackPayload=True)
         keyboard = keyboard_edit(property=callFull.data,backCall=backCall)
         bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: \n{oldAnswer}', reply_markup=keyboard)            
+    
+    if call[0] =='onbording':
+        subjectID = call[1]
+        # sql.set_subject_id(userID,subjectID) 
+        # sql.set_payload()
+        questions = sql.get_question_list_on(subjectID=subjectID)
+        questions = create_dict_questions(questions)
+        sql.set_subject_id(userID=userID, entity=subjectID)
 
+        textQuestion = questions[1]['text']
+        bot.send_message(userID,text=textQuestion)
+        sql.set_payload(userID, 'quest_1')  
+        COUNT_QUESTS_USER[userID] = 1
 
     if call[0] == 'edit':
         bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Пришлите новое значение',)            
@@ -332,7 +347,7 @@ def callback_inline(callFull):
 
 
 
-def create_onbord_for(subjectID, userID, projectID, message_id):
+def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     subject = {
         1: 'TargetAudience',
         2: 'ProductAdvantages',
@@ -358,14 +373,16 @@ def create_onbord_for(subjectID, userID, projectID, message_id):
                 promt = promt.replace(key,answer['answer'])
     print(promt)
     # text = {"role": "user", "content": 'как можно точнее'}
-    bot.send_message(userID, f'Формирую описание ЦА…')
+    # bot.send_message(userID, f'Формирую описание ЦА…')
+    bot.send_message(userID, f'Формирую описание ...(ответ может занят >3m)')
     answerGPT = gpt.answer(promt,[])[0]
 
     add_long_message(str(userID),subjectCallBack, answerGPT)
 
     print(f'{answerGPT=}')
     # answer = gpt.answer(PROMT_URL,history)[0]  
-    bot.send_message(userID,text=answerGPT,) 
+    send_long_message(userID, answerGPT)
+    # bot.send_message(userID,text=answerGPT,) 
     my_project(userID,message_id)
     
     numQuestion = int(sql.get_payload(userID).split('_')[1])
@@ -373,15 +390,15 @@ def create_onbord_for(subjectID, userID, projectID, message_id):
         row = {
             'id':time_epoch(),
             'idProfile': sql.get_project_id(userID),
-            'Answer': text,
-            'idQuestionList': numQuestion
+            'Answer': subjectCallBack,
+            'idQuestionList': questionID
         }
         sql.insert_query('ProfileDescription', rows=row)
     else:
         row = {
-            'Answer': text,
+            'Answer': subjectCallBack,
         }
-        sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}")
+        sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={questionID}")
     return 0 
 
 
@@ -479,7 +496,7 @@ def any_message(message):
 
     if payload.startswith('quest'):
         # questions1 = sql.get_question_list_on(subjectID=subjectID)
-        questions1 = sql.get_question_list_on(subjectID=1)
+        questions1 = sql.get_question_list_on(subjectID=subjectID)
         # questions2 = sql.get_question_list_on(subjectID=2)
         # questions3 = sql.get_question_list_on(subjectID=3)
         questions=questions1
@@ -489,28 +506,30 @@ def any_message(message):
         # try:
         questions = create_dict_questions(questions)
         numQuestion = int(payload.split('_')[1])
+        idQuestions = questions[numQuestion]['id']
         logger.debug(f'ответ на {numQuestion} вопрос {text}')
 
-        if numQuestion in [SubjectType.Profile_info.Target.lastIDquestions,
-                            SubjectType.Profile_info.Tov.lastIDquestions,
-                            SubjectType.Profile_info.Product.lastIDquestions,]:
-            answer = sql.get_answer_on(questionID=numQuestion, forProfileID=projectID)
+        if numQuestion == len(questions)-1:
+            # answer = sql.get_answer_on(questionID=numQuestion, forProfileID=projectID)
+            answer = sql.get_answer_on(questionID=idQuestions, forProfileID=projectID)
             if answer == []:
                 row = {
                     'id':time_epoch(),
                     'idProfile': sql.get_project_id(userID),
                     'Answer': text,
-                    'idQuestionList': numQuestion
+                    # 'idQuestionList': numQuestion
+                    'idQuestionList': idQuestions
                 }
                 sql.insert_query('ProfileDescription', rows=row)
             else:
                 row = {
                     'Answer': text,
                 }
-                sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}") 
+                # sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}") 
+                sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}") 
             #TODO 
             #просто по последнему вопросу генерируем
-            create_onbord_for(subjectID=subjectID,userID=userID,projectID=projectID, message_id=message_id)
+            create_onbord_for(subjectID=subjectID,userID=userID,projectID=projectID, message_id=message_id, questionID=idQuestions)
             # sql.get
             #TODO 
             #и установать payload
@@ -524,21 +543,23 @@ def any_message(message):
         #     bot.send_message(userID,text=textQuestion,) 
         
         
-        answer = sql.get_answer_on(questionID=numQuestion, forProfileID=projectID)
+        answer = sql.get_answer_on(questionID=idQuestions, forProfileID=projectID)
         
         if answer == []:
             row = {
                 'id':time_epoch(),
                 'idProfile': sql.get_project_id(userID),
                 'Answer': text,
-                'idQuestionList': numQuestion
+                # 'idQuestionList': numQuestion
+                'idQuestionList': idQuestions
             }
             sql.insert_query('ProfileDescription', rows=row)
         else:
             row = {
                 'Answer': text,
             }
-            sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}")
+            # sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}")
+            sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}")
         
         COUNT_QUESTS_USER[userID] += 1
         try:

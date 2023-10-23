@@ -4,6 +4,7 @@ import ydb.iam
 from dotenv import load_dotenv
 from helper import sum_dict_values, create_dict_questions
 from pprint import pprint
+from loguru import logger
 #from helper import *
 load_dotenv()
 
@@ -377,9 +378,13 @@ class Ydb:
     def get_answer_list_on(self, subjectID:int, forProfileID:int):
         answers = []
         questions = self.get_question_list_on(subjectID=subjectID)
+        pprint(questions)
         for question in questions:
-            answer = self.get_answer_on(questionID=question['id'], forProfileID=forProfileID)[0]['Answer']
-            
+            logger.critical(question)
+            try:
+                answer = self.get_answer_on(questionID=question['id'], forProfileID=forProfileID)[0]['Answer']
+            except Exception as e:
+                logger.debug(e)
             # answers.append(answer)
             answers.append({'tag':question['Tag'],
                              'answer':answer})
