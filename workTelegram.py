@@ -75,11 +75,16 @@ def say_welcome(message):
     sql.create_table(str(message.chat.id), row)
     row = {'id': message.chat.id, 'nickname':username, 'payload': ''}
     sql.replace_query('user', row)
+    projects = sql.select_query('project', f'user_id = {message.chat.id}')
+    if projects == []:
+        keyboard = create_start_keyboard(isFirst=True)
+    else:
+        keyboard = create_start_keyboard(isFirst=False)
     # QUESTS_USERS[userID] 
-    text = """Здравствуйте, я AI ассистент по созданию контента """
+    text = """Здравствуйте, я AI ассистент по созданию контента. Добавьте новый проект"""
     bot.send_message(message.chat.id, text, 
                      parse_mode='markdown',
-                     reply_markup= create_menu_keyboard())
+                     reply_markup= keyboard)
 
 
 @bot.message_handler(commands=['restart'])
@@ -120,8 +125,10 @@ def my_project(userID, messageID):
     dic = {}
     for project in projects:
         dic.setdefault(project['name'], f"project_{project['time_epoh']}")
-
-    bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic) )
+    # if projects == []:
+    #    bot.send_message(userID,text='У вас еще нет проектов',) 
+    # else:
+    bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic,'a') )
 
 def delete_my_project(userID, messageID, projectID):
      
@@ -187,6 +194,15 @@ def callback_inline(callFull):
     
     
     if call[0]=='project':
+        if call[1] == 'add':
+            sql.set_payload(userID, 'quest_1_newProject') 
+            payload='quest_1_newProject'
+            
+            COUNT_QUESTS_USER[userID] = 1
+
+            bot.send_message(userID,f'Название проекта')
+            return 0
+        
         project = sql.select_query('project',f'time_epoh={call[1]}')[0]
         sql.set_payload(userID, f'project_{call[1]}')
         sql.set_project_id(userID, f'{call[1]}')
@@ -194,6 +210,7 @@ def callback_inline(callFull):
         # sql.select_query('asdas', where answer == 'asdf' and project_id == 1234,)
         text = f"""Проект: {project['name']}"""
         keyboard = keyboard_menu_project()
+    
         bot.edit_message_text(chat_id=userID,message_id=message_id, text=text, reply_markup=keyboard)
         # keyboard = keyboard_type_content()
         bot.answer_callback_query(callFull.id) 
@@ -258,7 +275,7 @@ def callback_inline(callFull):
             bot.edit_message_text(chat_id=userID,message_id=message_id, text='Меню сторителинга', reply_markup=keyboard) 
             
         if call[1] == 'selectProject':
-            my_project(userID)
+            my_project(userID,message_id)
         
         if call[1] == 'deleteProject':
             delete_my_project(userID=userID,messageID=message_id ,projectID=projectID)
@@ -345,6 +362,11 @@ def callback_inline(callFull):
 # a = {'[about the product]=': 'prod_info',
 #      }
 
+maessageStartSubject ={
+    1:'Ответьте, пожалуйста, на несколько вопросов о целевой аудитории',
+    2:'Ответьте, пожалуйста, на несколько вопросов для формирования тональности ведения блога',
+    3:'Ответьте, пожалуйста, на несколько вопросов о продукте'
+}
 
 
 def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
@@ -374,18 +396,19 @@ def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     print(promt)
     # text = {"role": "user", "content": 'как можно точнее'}
     # bot.send_message(userID, f'Формирую описание ЦА…')
-    bot.send_message(userID, f'Формирую описание ...(ответ может занят >3m)')
-    answerGPT = gpt.answer(promt,[])[0]
-
+    bot.send_message(userID, f'Формирую описание проекта. Процесс может занять несколько минут')
+    #TODO #NOTE
+    # answerGPT = gpt.answer(promt,[])[0]
+    answerGPT = "AnswerGPT"
     add_long_message(str(userID),subjectCallBack, answerGPT)
 
     print(f'{answerGPT=}')
     # answer = gpt.answer(PROMT_URL,history)[0]  
     send_long_message(userID, answerGPT)
     # bot.send_message(userID,text=answerGPT,) 
-    my_project(userID,message_id)
-    
-    numQuestion = int(sql.get_payload(userID).split('_')[1])
+    # my_project(userID,message_id)
+    answer = sql.get_answer_on(questionID=questionID, forProfileID=projectID) 
+    # numQuestion = int(sql.get_payload(userID).split('_')[1])
     if answer == []:
         row = {
             'id':time_epoch(),
@@ -474,7 +497,7 @@ def any_message(message):
             'name': text,
         }
         sql.replace_query('project', row)
-        bot.send_message(userID,f'Проект зарегистрирован',)
+        bot.send_message(userID,f'Проект зарегистрирован',reply_markup=create_menu_keyboard())
         
         sql.set_payload(userID, '1quest_1') 
         sql.set_project_id(userID=userID, entity=proID)
@@ -482,7 +505,10 @@ def any_message(message):
         questions = sql.get_question_list_on(subjectID=1)
         questions = create_dict_questions(questions)
         sql.set_subject_id(userID=userID, entity=1)
-
+        
+        mes = maessageStartSubject[1]
+        bot.send_message(userID,text=mes)
+        
         textQuestion = questions[1]['text']
         bot.send_message(userID,text=textQuestion) 
         return 0
@@ -495,6 +521,8 @@ def any_message(message):
         sql.set_payload(userID, 'quest_1')  
 
     if payload.startswith('quest'):
+        numQuestion = int(payload.split('_')[1])
+        
         # questions1 = sql.get_question_list_on(subjectID=subjectID)
         questions1 = sql.get_question_list_on(subjectID=subjectID)
         # questions2 = sql.get_question_list_on(subjectID=2)
@@ -505,7 +533,7 @@ def any_message(message):
         # pprint(questions)
         # try:
         questions = create_dict_questions(questions)
-        numQuestion = int(payload.split('_')[1])
+        
         idQuestions = questions[numQuestion]['id']
         logger.debug(f'ответ на {numQuestion} вопрос {text}')
 
@@ -529,11 +557,33 @@ def any_message(message):
                 sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}") 
             #TODO 
             #просто по последнему вопросу генерируем
-            create_onbord_for(subjectID=subjectID,userID=userID,projectID=projectID, message_id=message_id, questionID=idQuestions)
+            idQuestionsMinor = questions[numQuestion+1]['id']
+            create_onbord_for(subjectID=subjectID,userID=userID,projectID=projectID, message_id=message_id, questionID=idQuestionsMinor)
+
+
+            # bot.send_message(userID,text=textQuestion,)
+
             # sql.get
             #TODO 
             #и установать payload
             subjectID +=1
+            sql.set_payload(userID,'quest_1')
+            questions = sql.get_question_list_on(subjectID=subjectID)
+            if questions == []:
+                nameProject = sql.select_query('project', f'time_epoh={projectID}')[0]['name']
+                bot.send_message(userID,text=f'Весь проект заполнен спасибо. Информацию о проекте вы можете посмотреть в разделе: Мои проекты / {nameProject} / Информация о проекте',)
+                sql.set_payload(userID,f"")
+                return 0
+            
+            mes = maessageStartSubject[subjectID]
+            bot.send_message(userID,text=mes)
+            # idQuestions = questions[1]['id'] 
+            textQuestion = questions[0]['Question']
+            bot.send_message(userID,text=textQuestion,)
+            sql.set_subject_id(userID,subjectID)
+            COUNT_QUESTS_USER[userID] = 0
+            return 0
+
             #TODO
             #subjectID взять количество из базы потом 
         # if numQuestion !=1:

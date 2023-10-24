@@ -8,16 +8,29 @@ def create_keyboard_is_row(rows: list):
         keyboard.row(row)
     return keyboard
 
-def create_inlinekeyboard_is_row(rows: dict):
+def create_inlinekeyboard_is_row(rows: dict,type:str=None):
     keyboard = telebot.types.InlineKeyboardMarkup()
     for text, callback in rows.items():
         keyboard.row(telebot.types.InlineKeyboardButton(text=text, callback_data=callback)) 
+    if type is None:
+        1+0
+    else: 
+        keyboard.row(telebot.types.InlineKeyboardButton(text='Добавить проект', callback_data='project_add'))  
     return keyboard
 
 def create_menu_keyboard():
     keyboard = telebot.types.ReplyKeyboardMarkup(True)
-    keyboard.row('Добавить новый проект')
+    # keyboard.row('Добавить новый проект')
     keyboard.row('Мои проекты')
+    return keyboard
+
+def create_start_keyboard(isFirst:bool = True):
+    keyboard = telebot.types.ReplyKeyboardMarkup(True)
+    if isFirst:
+        keyboard.row('Добавить новый проект')
+    else:
+        keyboard.row('Добавить новый проект')
+        keyboard.row('Мои проекты')
     return keyboard
 
 
@@ -37,11 +50,12 @@ def keyboard_create_content(lastFix=''):
 def keyboard_menu_project():
     #lastFix - имя проекта или id
     keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Информация о проекте', callback_data=f"menu_smm")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Настройки SMM', callback_data=f"menu_smm")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Контент-план', callback_data=f"menu_contentPlan")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Сторителлинг', callback_data=f"menu_storitaling")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Выбрать проект', callback_data=f"menu_selectProject")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Удалить проект', callback_data=f"menu_deleteProject")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"menu_selectProject")) 
     return keyboard
 
 def keyboard_edit(property:str='', backCall=''):

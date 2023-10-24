@@ -1,7 +1,7 @@
 import redis
 import json
 r = redis.Redis(host='localhost', port=6379, decode_responses=False)
-
+#TODO добавить удаление длинного сообщения
 def add_message_to_history(userID:str, role:str, message:str):
     mess = {'role': role, 'content': message}
     r.lpush(userID, json.dumps(mess))
