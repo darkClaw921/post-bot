@@ -50,10 +50,15 @@ def keyboard_create_content(lastFix=''):
 def keyboard_menu_project():
     #lastFix - имя проекта или id
     keyboard = telebot.types.InlineKeyboardMarkup()
+
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Генерация контента', callback_data=f"contenPlan_create")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Готовый контент', callback_data=f"contenPlan_now")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Информация о проекте', callback_data=f"menu_smm")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Настройки SMM', callback_data=f"menu_smm")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Контент-план', callback_data=f"menu_contentPlan")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Сторителлинг', callback_data=f"menu_storitaling")) 
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='Настройки SMM', callback_data=f"menu_smm")) 
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='Контент-план', callback_data=f"menu_contentPlan")) 
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='Генерация контента', callback_data=f"menu_contentPlan")) 
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='Готовый контент', callback_data=f"menu_storitaling")) 
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='Сторителлинг', callback_data=f"menu_storitaling")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Удалить проект', callback_data=f"menu_deleteProject")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"menu_selectProject")) 
     return keyboard
@@ -96,11 +101,15 @@ def keyboard_storitaling(project_id:int):
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"project_{project_id}")) 
     return keyboard
 
-def create_keyboard_menu_from_sql(forSubjectType:str,backCall:str='project'):
+def create_keyboard_menu_from_sql(forSubjectType:str,backCall:str='project', nameStartCallback = None):
     points = sql.select_query('SubjectsOfDescription', f"subjectsType = '{forSubjectType}'")
     dic = {}
     for point in points:
-        dic[point['name']]= f"{forSubjectType}_{point['callback']}"
+        if nameStartCallback is None:
+            dic[point['name']]= f"{forSubjectType}_{point['callback']}"
+        else:    
+            dic[point['name']]= f"{nameStartCallback}_{point['callback']}"
+            
     keyboard = create_inlinekeyboard_is_row(dic)
     
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 

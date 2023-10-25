@@ -264,17 +264,41 @@ class Ydb:
         rez = b[0].rows[0]['subjectID']
         return rez
     
+    def get_call_back(self, whereID: int):
+        query = f'SELECT call_back FROM user WHERE id = {whereID}'
+        print(query)
+        def a(session):
+            return session.transaction().execute(
+                query,
+                commit_tx=True,
+            )
+        b = pool.retry_operation_sync(a)
+        rez = b[0].rows[0]['call_back']
+        return rez
+    
+    def get(self,what:str, whereID: int):
+        query = f'SELECT {what} FROM user WHERE id = {whereID}'
+        print(query)
+        def a(session):
+            return session.transaction().execute(
+                query,
+                commit_tx=True,
+            )
+        b = pool.retry_operation_sync(a)
+        rez = b[0].rows[0][what]
+        return rez
+    
     def set_payload(self, userID: int, entity:str, isBackPayload=False):
         # if isBackPayload:
-        oldPayload=self.get_payload(userID)
+        # oldPayload=self.get_payload(userID)
         # query = f'UPDATE user SET back_payload = "{oldPayload}" WHERE id = {userID}' 
-        row ={
-            'back_payload': oldPayload
-        }
-        self.update_query('user', row, where=f'id = {userID}')
+        # row ={
+        #     'back_payload': oldPayload
+        # }
+        # self.update_query('user', row, where=f'id = {userID}')
 
-        query = f'UPDATE user SET payload = "{entity}" WHERE id = {userID}'
-        #print(query)
+        query = f"UPDATE user SET payload = '{entity}' WHERE id = {userID}"
+        print(query)
         
          
         
@@ -297,6 +321,26 @@ class Ydb:
     
     def set_subject_id(self, userID: int, entity:int):
         query = f'UPDATE user SET subjectID = {entity} WHERE id = {userID}'
+        #print(query)
+        def a(session):
+            session.transaction(ydb.SerializableReadWrite()).execute(
+                query,
+                commit_tx=True,
+            )
+        return pool.retry_operation_sync(a)
+    
+    def set_call_back(self, userID: int, entity:int):
+        query = f'UPDATE user SET call_back = "{entity}" WHERE id = {userID}'
+        #print(query)
+        def a(session):
+            session.transaction(ydb.SerializableReadWrite()).execute(
+                query,
+                commit_tx=True,
+            )
+        return pool.retry_operation_sync(a)
+    
+    def set(self, userID: int,what:str, entity:int):
+        query = f'UPDATE user SET {what} = "{entity}" WHERE id = {userID}'
         #print(query)
         def a(session):
             session.transaction(ydb.SerializableReadWrite()).execute(
