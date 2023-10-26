@@ -12,7 +12,7 @@ from createKeyboard import *
 from helper import *
 from workRedis import *
 from promtTXT import *
-
+import speech_recognition as sr
 from questions import questionNewProject
 
 load_dotenv()
@@ -424,7 +424,7 @@ maessageStartSubject ={
 
 }
 
-
+recognizer = sr.Recognizer()
 def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     subject = {
         1: 'TargetAudience',
@@ -481,6 +481,31 @@ def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     return 0 
 
 
+@bot.message_handler(content_types=['voice'])
+def handle_audio(message):
+    file_info = bot.get_file(message.voice.file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+
+    # Сохраняем полученное аудио в файл
+    # with open('audio.ogg', 'wb') as audio_file:
+    with open('audio.wav', 'wb') as audio_file:
+        audio_file.write(downloaded_file)
+
+    # Читаем аудио из файла
+    with sr.AudioFile('audio.wav') as source:
+        audio_data = recognizer.record(source)
+
+    # Расшифровываем аудио
+    try:
+        text = recognizer.recognize_google(audio_data, language='ru-RU')
+        bot.send_message(message.chat.id, f"Распознанный текст: {text}")
+    except sr.UnknownValueError:
+        bot.send_message(message.chat.id, "Не удалось распознать аудио")
+
+    # Удаляем временный файл аудио
+    os.remove('audio.ogg')
+
+
 @bot.message_handler(content_types=['text'])
 @logger.catch
 def any_message(message):
@@ -490,7 +515,7 @@ def any_message(message):
     text = message.text.lower()
     userID= message.chat.id
     message_id = message.message_id
-    print(message_id)
+    # print(message_id)
     # dicVOLODIA= {message.text.upper(): max(lambda: message.body[::-1] / len(message))}
     username = message.from_user.username
     payload = sql.get_payload(userID)
@@ -534,6 +559,7 @@ def any_message(message):
 # SubjectType.profileInfo
     # subjectID = 1
     
+
 
     if text == 'добавить новый проект':
         sql.set_payload(userID, 'quest_1_newProject') 
@@ -705,17 +731,20 @@ def any_message(message):
     subjectType = sql.get('content_create', userID)
     promt = find_text_from_promt(forSubjectType=subjectType, text=promt)
     print(f'{promt=}')
-    keys = find_key_words(promt)
-    print(f'{keys=}') 
-    answers = sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
-    
-    for key in keys:
-        for answer in answers:
-            key1=key.replace('[','').replace(']','')
-            if answer['tag'] == key1:
-                promt = promt.replace(key,answer['answer'])
-    print(promt)
-    promt = promt.replace('[StorytellingStructure]',StorytellingStructure)
+    try:
+        keys = find_key_words(promt)
+        print(f'{keys=}') 
+        answers = sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
+
+        for key in keys:
+            for answer in answers:
+                key1=key.replace('[','').replace(']','')
+                if answer['tag'] == key1:
+                    promt = promt.replace(key,answer['answer'])
+        print(promt)
+        promt = promt.replace('[StorytellingStructure]',StorytellingStructure)
+    except:
+        promt = 'ты помошник по генерации контена'
     try:
         if text == 'aabb':
             #принудительная саммари диалога
