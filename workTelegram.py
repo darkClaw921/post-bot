@@ -255,9 +255,6 @@ def callback_inline(callFull):
             keyboard = create_keyboard_menu_from_sql(forSubjectType='content' , backCall=backCall, nameStartCallback='contentGet') 
             bot.edit_message_text(chat_id=userID,message_id=message_id, text='Какой тип контента хотите посмотреть?', reply_markup=keyboard) 
 
-               
-            
-    
     if call[0] == 'storitaling':
         # keyboard = keyboard_type_content()
         if call[1] == 'create':
@@ -329,8 +326,11 @@ def callback_inline(callFull):
         
         backCall = sql.get_payload(userID,isBackPayload=True)
         keyboard = keyboard_edit(property=callFull.data,backCall=backCall)
-        bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: \n{oldAnswer}', reply_markup=keyboard)            
-    
+        try:
+            bot.edit_message_text(chat_id=userID,message_id=message_id, text=f'Текущие значение: \n{oldAnswer}', reply_markup=keyboard)            
+        except:
+            send_long_message(oldAnswer)
+
     if call[0] =='onbording':
         subjectID = call[1]
         # sql.set_subject_id(userID,subjectID) 
@@ -497,13 +497,14 @@ def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
         row = {
             'id':time_epoch(),
             'idProfile': sql.get_project_id(userID),
-            'Answer': subjectCallBack,
+            # 'Answer': subjectCallBack,
+            'Answer': answerGPT,
             'idQuestionList': questionID
         }
         sql.insert_query('ProfileDescription', rows=row)
     else:
         row = {
-            'Answer': subjectCallBack,
+            'Answer': answerGPT,
         }
         sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={questionID}")
     return 0 
@@ -525,6 +526,14 @@ def voice_processing(message):
     bot.reply_to(message, text)
     os.remove(file_name_full)
     os.remove(file_name_full_converted)
+    # a = message.text
+    print(f'{a=}')
+    message.text = text
+    # a = message.text
+    # print(f'{a=}')
+
+    # print(f'{message=}')
+    any_message(message)
 
 
 @bot.message_handler(content_types=['text'])
