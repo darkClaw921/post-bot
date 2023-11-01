@@ -1,0 +1,18 @@
+tiktoken
+langchain
+openai
+gspread
+google-api-python-client
+oauth2client
+ipywidgets
+telebot
+loguru
+urllib3
+python-dotenv
+chromadb
+ydb
+ydb[yc]
+redis
+SpeechRecognition
+#python3 -m pip install cffi 
+#ffmpeg

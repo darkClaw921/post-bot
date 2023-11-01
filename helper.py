@@ -6,6 +6,11 @@ import time
 from dataclasses import dataclass
 from pprint import pprint
 from promtTXT import target
+import speech_recognition as sr
+language='ru_RU'
+r = sr.Recognizer()
+
+
 @dataclass
 class SubjectType:
     class Profile_info:
@@ -86,6 +91,17 @@ def summary(userID, error, isDEBUG):
     bot.send_message(message.chat.id, answer)
     add_message_to_history(userID, 'assistant', answer)
 
+def recognise(filename):
+    with sr.AudioFile(filename) as source:
+        audio_text = r.listen(source)
+        try:
+            text = r.recognize_google(audio_text,language=language)
+            print('Converting audio transcripts into text ...')
+            print(text)
+            return text
+        except:
+            print('Sorry.. run again...')
+            return "Sorry.. run again..."
 
 def find_key_words(text):
 

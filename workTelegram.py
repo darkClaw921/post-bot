@@ -14,6 +14,7 @@ from workRedis import *
 from promtTXT import *
 import speech_recognition as sr
 from questions import questionNewProject
+import uuid
 
 load_dotenv()
 isDEBUG = True
@@ -141,6 +142,9 @@ def delete_my_project(userID, messageID, projectID):
         dic.setdefault(project['name'], f"project_{project['time_epoh']}")
     bot.edit_message_text(chat_id=userID,message_id=messageID,text='Проект и все связанные сущности удалены',reply_markup=create_inlinekeyboard_is_row(dic) )
 
+
+
+
 def create_content(typeContent, userID, messageID):
 
     global USERS_ANSWER_GPT
@@ -158,6 +162,11 @@ def create_content(typeContent, userID, messageID):
     keys = find_key_words(promt)
     print(keys)
     answers = sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
+    longMessage = get_long_message(userID)[0]
+    # my_dict = {'a': 1, 'b': 2, 'c': 3}
+    my_list = [{x:longMessage[x]} for x in longMessage]
+    answers.extend(my_list)
+    # answers.update(longMessage)
     # sql.get_answer_on
     for key in keys:
         for answer in answers:
@@ -173,8 +182,6 @@ def create_content(typeContent, userID, messageID):
     
     answerGPT = gpt.answer(promt,[])[0]
     # answerGPT = 'answerGPT'
-
-
     add_message_to_history(userID, 'assistant', answerGPT)
     # answerGPT = 'answerGPT'
     createContent = ''
@@ -424,13 +431,14 @@ maessageStartSubject ={
 
 }
 
-recognizer = sr.Recognizer()
+
 def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     subject = {
         1: 'TargetAudience',
         2: 'ProductAdvantages',
         3: 'ToneOfVoice'
     }
+
     from promtTXT import target
     # bot.send_message(userID,text='Готово')
     # promt = gpt.load_prompt()
@@ -442,8 +450,18 @@ def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     print(f'{promt=}')
     keys = find_key_words(promt)
     print(f'{keys=}') 
+
     answers = sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
     
+    
+    longMessage = get_long_message(userID)
+    if longMessage == []:
+        my_list = []
+    else: 
+        longMessage = longMessage[0]
+        my_list = [{'tag':x, 'answer':longMessage[x]} for x in longMessage]
+    answers.extend(my_list)
+    pprint(answers)
     for key in keys:
         for answer in answers:
             key1=key.replace('[','').replace(']','')
@@ -456,9 +474,19 @@ def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     #TODO #NOTE
     answerGPT = gpt.answer(promt,[])[0]
     # answerGPT = "AnswerGPT"
-    add_long_message(str(userID),subjectCallBack, answerGPT)
+    longMessage = get_long_message(userID)
+    if longMessage == []:
+        add_long_message(userID, {subject[subjectID]:answerGPT})
+    else: 
+        a = {subject[subjectID]: answerGPT}
+        extendedDict = longMessage[0] | a
+        print(f'{extendedDict=}')
+        add_long_message(userID,extendedDict)
+   
+
 
     print(f'{answerGPT=}')
+    
     # answer = gpt.answer(PROMT_URL,history)[0]  
     send_long_message(userID, answerGPT)
     # bot.send_message(userID,text=answerGPT,) 
@@ -482,28 +510,21 @@ def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
 
 
 @bot.message_handler(content_types=['voice'])
-def handle_audio(message):
+def voice_processing(message):
+    text = message.text
+    logger.debug(f'{text=}')
+    filename = str(uuid.uuid4())
+    file_name_full="voice/"+filename+".ogg"
+    file_name_full_converted="ready/"+filename+".wav"
     file_info = bot.get_file(message.voice.file_id)
     downloaded_file = bot.download_file(file_info.file_path)
-
-    # Сохраняем полученное аудио в файл
-    # with open('audio.ogg', 'wb') as audio_file:
-    with open('audio.wav', 'wb') as audio_file:
-        audio_file.write(downloaded_file)
-
-    # Читаем аудио из файла
-    with sr.AudioFile('audio.wav') as source:
-        audio_data = recognizer.record(source)
-
-    # Расшифровываем аудио
-    try:
-        text = recognizer.recognize_google(audio_data, language='ru-RU')
-        bot.send_message(message.chat.id, f"Распознанный текст: {text}")
-    except sr.UnknownValueError:
-        bot.send_message(message.chat.id, "Не удалось распознать аудио")
-
-    # Удаляем временный файл аудио
-    os.remove('audio.ogg')
+    with open(file_name_full, 'wb') as new_file:
+        new_file.write(downloaded_file)
+    os.system("ffmpeg -i "+file_name_full+"  "+file_name_full_converted)
+    text=recognise(file_name_full_converted)
+    bot.reply_to(message, text)
+    os.remove(file_name_full)
+    os.remove(file_name_full_converted)
 
 
 @bot.message_handler(content_types=['text'])
