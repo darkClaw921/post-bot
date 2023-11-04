@@ -133,7 +133,8 @@ def create_dict_questions(questions:list)->dict:
     for i, quest in enumerate(questions):
         dic[i+1]={'tag': quest['Tag'],
                 'text': quest['Question'],
-                'id': quest['id']}
+                'id': quest['id'],
+                'typeQuestion':quest['typeQuestion']}
     pprint(dic)
     return dic
 

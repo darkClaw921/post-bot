@@ -82,7 +82,23 @@ def say_welcome(message):
     else:
         keyboard = create_start_keyboard(isFirst=False)
     # QUESTS_USERS[userID] 
-    text = """Здравствуйте, я AI ассистент по созданию контента. Добавьте новый проект"""
+    text = """ Добро пожаловать в ContentCraft! 
+Мы строим коммуникацию и делаем сторителлинг за вас, поэтому вам больше не надо ломать голову о тому, что и как выложить😇
+Мы запоминаем всю информацию про бизнес, его особенности и делаем маркетинговый анализ, чтобы ваш контент достигал целей в два клика."""
+    bot.send_message(message.chat.id, text, 
+                     parse_mode='markdown',
+                     reply_markup= keyboard)
+    
+    
+    text = """Прежде чем начать генерировать контент вам необходимо ответить на несколько вопросов.
+Эту информацию мы будем регулярно использовать в своей работе, поэтому постарайтесь отвечать подробно и конкретно, без расплывчатых и общих формулировок 🙌🏼"""    
+    
+    bot.send_message(message.chat.id, text, 
+                     parse_mode='markdown',)
+    
+    keyboard = keyboard_yes_no()
+    text = """Показать примеры ответов на вопросы?"""    
+    
     bot.send_message(message.chat.id, text, 
                      parse_mode='markdown',
                      reply_markup= keyboard)
@@ -130,6 +146,8 @@ def my_project(userID, messageID):
     #    bot.send_message(userID,text='У вас еще нет проектов',) 
     # else:
     bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic,'a') )
+
+
 
 def delete_my_project(userID, messageID, projectID):
      
@@ -224,20 +242,45 @@ def callback_inline(callFull):
             bot.send_message(userID,f'Название проекта')
             return 0
         
+        payload = sql.get_payload(userID)
         project = sql.select_query('project',f'time_epoh={call[1]}')[0]
         sql.set_payload(userID, f'project_{call[1]}')
         sql.set_project_id(userID, f'{call[1]}')
         # project['id']
         # sql.select_query('asdas', where answer == 'asdf' and project_id == 1234,)
         text = f"""Проект: {project['name']}"""
-        keyboard = keyboard_menu_project()
+        keyboard = keyboard_menu_project(typeMenu=payload)
     
         bot.edit_message_text(chat_id=userID,message_id=message_id, text=text, reply_markup=keyboard)
         # keyboard = keyboard_type_content()
         sql.set_call_back(userID,callFull.data) 
         bot.answer_callback_query(callFull.id) 
     
-    # if call[0]=''
+    if call[0] == 'yes':
+        if call[1] == 'start':
+            bot.send_message(userID,f'Пример воросов:')
+            keyboard = keyboard_yes_no('project')
+            bot.send_message(userID,f'Хотите сразу добавить новый проект?', reply_markup=keyboard)
+            
+        else:
+            callFull.data='project_add'
+            callback_inline(callFull=callFull)
+        
+        bot.answer_callback_query(callFull.id)
+        return 0
+     
+    if call[0] == 'no':
+        if call[1] == 'start':
+            keyboard = keyboard_yes_no('project')
+            bot.send_message(userID,f'Хотите сразу добавить новый проект?', reply_markup=keyboard)
+        else: 
+            bot.send_message(userID,f'Хорошо, вы можете добавить проект в любой момент из главного меню', )
+            # my_project(userID=userID, messageID=message_id)
+            # callback_inline(callFull=callFull)
+        
+        bot.answer_callback_query(callFull.id)
+        return 0
+        #  bot.send_message(userID,f'Пример воросов:')     
 
     if call[0] == 'contenPlan':
         # keyboard = keyboard_type_content()
@@ -427,7 +470,8 @@ maessageStartSubject ={
     2:'Ответьте, пожалуйста, на несколько вопросов для формирования тональности ведения блога',
     3:'Ответьте, пожалуйста, на несколько вопросов о продукте',
     5:'Ответьте, пожалуйста, на несколько вопросов для создания сториз.',
-    6:'Ответьте, пожалуйста, на несколько вопросов для написания поста.'
+    6:'Ответьте, пожалуйста, на несколько вопросов для написания поста.',
+    7:'Ответьте, пожалуйста, на несколько вопросов для начала'
 
 }
 
@@ -535,7 +579,7 @@ def voice_processing(message):
     # print(f'{message=}')
     any_message(message)
 
-
+#status  null-просто вопровс generate-генерация гпт asnwerGTP-ответ от гпт 
 @bot.message_handler(content_types=['text'])
 @logger.catch
 def any_message(message):
@@ -553,8 +597,15 @@ def any_message(message):
     subjectID= sql.get_subject_id(userID)
     # text = asdlkasl;kfjlas;
 
-    if text == 'мои проекты':
+    if text == 'управление проектами':
         my_project(userID,message_id)
+        sql.set_payload(userID,'control')
+
+        return 0
+    
+    if text == 'генерация':
+        my_project(userID,message_id)
+        sql.set_payload(userID,'content') 
         return 0
     
     if payload.startswith('edit'):
@@ -614,9 +665,9 @@ def any_message(message):
         sql.set_payload(userID, '1quest_1') 
         sql.set_project_id(userID=userID, entity=proID)
         
-        questions = sql.get_question_list_on(subjectID=1)
+        questions = sql.get_question_list_on(subjectID=7)
         questions = create_dict_questions(questions)
-        sql.set_subject_id(userID=userID, entity=1)
+        sql.set_subject_id(userID=userID, entity=7)
         
         mes = maessageStartSubject[1]
         bot.send_message(userID,text=mes)
@@ -632,11 +683,14 @@ def any_message(message):
         payload = 'quest_1'
         sql.set_payload(userID, 'quest_1')  
 
+
     if payload.startswith('quest'):
         numQuestion = int(payload.split('_')[1])
-        
+         
         # questions1 = sql.get_question_list_on(subjectID=subjectID)
-        questions1 = sql.get_question_list_on(subjectID=subjectID)
+        #TODO борать только вопросы с типом вопрос 
+        # questions1 = sql.get_question_list_on(subjectID=subjectID)
+        questions1 = sql.get_question_list_on(subjectID=subjectID, onlyQuestion=True)
         # questions2 = sql.get_question_list_on(subjectID=2)
         # questions3 = sql.get_question_list_on(subjectID=3)
         questions=questions1
@@ -645,11 +699,37 @@ def any_message(message):
         # pprint(questions)
         # try:
         questions = create_dict_questions(questions)
-        
+        typeQuestions = questions[numQuestion]['typeQuestion']
+
         idQuestions = questions[numQuestion]['id']
         logger.debug(f'ответ на {numQuestion} вопрос {text}')
 
-        if numQuestion == len(questions)-1:
+        if numQuestion == len(questions):
+            answer = sql.get_answer_on(questionID=idQuestions, forProfileID=projectID)
+            if answer == []:
+                row = {
+                    'id':time_epoch(),
+                    'idProfile': sql.get_project_id(userID),
+                    'Answer': text,
+                    # 'idQuestionList': numQuestion
+                    'idQuestionList': idQuestions
+                }
+                sql.insert_query('ProfileDescription', rows=row)
+            else:
+                row = {
+                    'Answer': text,
+                }
+                # sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}") 
+                sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}")
+            nameProject = sql.select_query('project', f'time_epoh={projectID}')[0]['name']
+            
+            bot.send_message(userID,text=f'Весь проект заполнен спасибо. Информацию о проекте вы можете посмотреть в разделе: Мои проекты / {nameProject} / Информация о проекте',)
+            sql.set_payload(userID,f"")
+            return 0
+
+        if typeQuestions == 'generate' or numQuestion == len(questions):
+        #NOTE 
+        # if numQuestion == len(questions):
             # answer = sql.get_answer_on(questionID=numQuestion, forProfileID=projectID)
             answer = sql.get_answer_on(questionID=idQuestions, forProfileID=projectID)
             if answer == []:
@@ -667,6 +747,7 @@ def any_message(message):
                 }
                 # sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}") 
                 sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}") 
+            
             #TODO 
             #просто по последнему вопросу генерируем
             idQuestionsMinor = questions[numQuestion+1]['id']

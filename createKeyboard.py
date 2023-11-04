@@ -29,8 +29,8 @@ def create_start_keyboard(isFirst:bool = True):
     if isFirst:
         keyboard.row('Добавить новый проект')
     else:
-        keyboard.row('Добавить новый проект')
-        keyboard.row('Мои проекты')
+        keyboard.row('Генерация')
+        keyboard.row('Управление проектами')
     return keyboard
 
 
@@ -47,19 +47,17 @@ def keyboard_create_content(lastFix=''):
     keyboard.row(telebot.types.InlineKeyboardButton(text='Сойдет', callback_data=f"create_done_{lastFix}")) 
     return keyboard
 
-def keyboard_menu_project():
+def keyboard_menu_project(typeMenu:str=''):
     #lastFix - имя проекта или id
     keyboard = telebot.types.InlineKeyboardMarkup()
 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Генерация контента', callback_data=f"contenPlan_create")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Готовый контент', callback_data=f"contenPlan_now")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Информация о проекте', callback_data=f"menu_smm")) 
-    # keyboard.row(telebot.types.InlineKeyboardButton(text='Настройки SMM', callback_data=f"menu_smm")) 
-    # keyboard.row(telebot.types.InlineKeyboardButton(text='Контент-план', callback_data=f"menu_contentPlan")) 
-    # keyboard.row(telebot.types.InlineKeyboardButton(text='Генерация контента', callback_data=f"menu_contentPlan")) 
-    # keyboard.row(telebot.types.InlineKeyboardButton(text='Готовый контент', callback_data=f"menu_storitaling")) 
-    # keyboard.row(telebot.types.InlineKeyboardButton(text='Сторителлинг', callback_data=f"menu_storitaling")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Удалить проект', callback_data=f"menu_deleteProject")) 
+    if typeMenu == 'content':
+        keyboard.row(telebot.types.InlineKeyboardButton(text='Генерация контента', callback_data=f"contenPlan_create")) 
+        keyboard.row(telebot.types.InlineKeyboardButton(text='Готовый контент', callback_data=f"contenPlan_now")) 
+    if typeMenu == 'control':
+        keyboard.row(telebot.types.InlineKeyboardButton(text='Информация о проекте', callback_data=f"menu_smm")) 
+        keyboard.row(telebot.types.InlineKeyboardButton(text='Удалить проект', callback_data=f"menu_deleteProject")) 
+    
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"menu_selectProject")) 
     return keyboard
 
@@ -92,6 +90,13 @@ def keyboard_content_plan(project_id:int):
     keyboard.row(telebot.types.InlineKeyboardButton(text='Текущий', callback_data=f"contenPlan_now")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Создать новый', callback_data=f"contenPlan_create")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"project_{project_id}")) 
+    return keyboard
+
+def keyboard_yes_no(secondValue:str = 'start'):
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Да', callback_data=f"yes_{secondValue}")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Нет', callback_data=f"no_{secondValue}")) 
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"project_{project_id}")) 
     return keyboard
 
 def keyboard_storitaling(project_id:int):

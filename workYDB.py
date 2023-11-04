@@ -387,9 +387,12 @@ class Ydb:
         #print('rez',rez)
         return rez
     
-    def get_question_list_on(self,subjectID:int):
+    def get_question_list_on(self,subjectID:int, onlyQuestion:bool=False):
         # 'where id > 20 '
-        query = f'SELECT * FROM QuestionList WHERE idSubjectsOfDescription = {subjectID}'
+        if onlyQuestion:
+            query = f"SELECT * FROM QuestionList WHERE idSubjectsOfDescription = {subjectID} and typeQuestion in ('standart','generate')"
+        else:
+            query = f'SELECT * FROM QuestionList WHERE idSubjectsOfDescription = {subjectID}'
         print(query)
 
         def a(session):
