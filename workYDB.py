@@ -422,16 +422,18 @@ class Ydb:
         #print('rez',rez)
         return rez
     
-    def get_answer_list_on(self, subjectID:int, forProfileID:int):
+    def get_answer_list_on(self, subjectID:int, forProfileID:int, ):
         answers = []
         questions = self.get_question_list_on(subjectID=subjectID)
-        pprint(questions)
+        # pprint(questions)
         for question in questions:
-            logger.critical(question)
+            # logger.critical(question)
             try:
                 answer = self.get_answer_on(questionID=question['id'], forProfileID=forProfileID)[0]['Answer']
             except Exception as e:
-                logger.debug(e)
+                logger.debug("Нет ответа на этот вопрос",e)
+                continue
+
             # answers.append(answer)
             answers.append({'tag':question['Tag'],
                              'answer':answer})

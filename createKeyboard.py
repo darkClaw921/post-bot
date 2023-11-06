@@ -20,8 +20,8 @@ def create_inlinekeyboard_is_row(rows: dict,type:str=None):
 
 def create_menu_keyboard():
     keyboard = telebot.types.ReplyKeyboardMarkup(True)
-    # keyboard.row('Добавить новый проект')
-    keyboard.row('Мои проекты')
+    keyboard.row('Генерация')
+    keyboard.row('Управление проектами')
     return keyboard
 
 def create_start_keyboard(isFirst:bool = True):
@@ -33,18 +33,29 @@ def create_start_keyboard(isFirst:bool = True):
         keyboard.row('Управление проектами')
     return keyboard
 
-
+def keyboard_next(next_number:int = 1, nameButton:str='>>'):
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(telebot.types.InlineKeyboardButton(text=nameButton, callback_data=f"next_{next_number}")) 
+    return keyboard
 def keyboard_type_content():
     keyboard = telebot.types.InlineKeyboardMarkup()
     keyboard.row(telebot.types.InlineKeyboardButton(text='Пост', callback_data=f"contentCreate_post")) 
     keyboard.row(telebot.types.InlineKeyboardButton(text='Сторис', callback_data=f"contentCreate_stories")) 
     return keyboard
 
+
+def keyboard_target_comunication():
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Вовлечение', callback_data=f"target_vovlech")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Прогрев', callback_data=f"target_progrev")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Продажа', callback_data=f"target_sell")) 
+    return keyboard
+
 def keyboard_create_content(lastFix=''):
     #lastFix - имя проекта или id
     keyboard = telebot.types.InlineKeyboardMarkup()
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Давай еще разок', callback_data=f"create_again_{lastFix}")) 
-    keyboard.row(telebot.types.InlineKeyboardButton(text='Сойдет', callback_data=f"create_done_{lastFix}")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Переделать', callback_data=f"create_again_{lastFix}")) 
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Класс!', callback_data=f"create_done_{lastFix}")) 
     return keyboard
 
 def keyboard_menu_project(typeMenu:str=''):
@@ -70,6 +81,18 @@ def keyboard_edit(property:str='', backCall=''):
     # keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"menu_{typeMenu}")) 
     
     keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 
+    return keyboard
+
+
+def keyboard_anslis_prod():
+    #property - название колонки в базе 
+
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(telebot.types.InlineKeyboardButton(text='Анализ продукта', callback_data=f"analis_")) 
+    # можно передать тип меню а потом вернуть на шаг назад
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"menu_{typeMenu}")) 
+    
+    # keyboard.row(telebot.types.InlineKeyboardButton(text='<<', callback_data=f"{backCall}")) 
     return keyboard
 
 def keyboard_smm_menu(project_id:int):
