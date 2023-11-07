@@ -17,7 +17,7 @@ from questions import questionNewProject
 import uuid
 
 load_dotenv()
-isDEBUG = True
+isDEBUG = False
 
 logger.add(sys.stderr, format="{time} {level} {message}", level="INFO")
 logger.add("workTelegram.log", rotation="50 MB")
@@ -135,6 +135,7 @@ def send_button(message):
 
 
 def my_project(userID, messageID):
+    global USERS_ANSWER_GPT
     try:
         projects = sql.select_query('project', f'user_id = {userID}') 
     except:
@@ -148,6 +149,7 @@ def my_project(userID, messageID):
     logger.debug(f'{projects=}')
     logger.debug(f'{dic=}')
     bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic,'a') )
+    USERS_ANSWER_GPT[userID]={'contenText':'','splitContent':''}
 
 
 def delete_my_project(userID, messageID, projectID):
@@ -162,6 +164,38 @@ def delete_my_project(userID, messageID, projectID):
         dic.setdefault(project['name'], f"project_{project['time_epoh']}")
     
 
+
+def split_stories(userID, projectID,textStorie):
+     
+    promt = gpt.load_prompt(PROMT_URL_CREATE_CONTENT)
+    typeContent = 'StorisSplit'
+    promt = find_text_from_promt(forSubjectType=typeContent, text=promt)
+    keys = find_key_words(promt)
+    print(keys)
+    
+    answers = sql.get_all_answer_list(forProfileID=projectID)
+    longMessage = get_long_message(userID)[0]
+    my_list = [{'tag':x, 'answer':longMessage[x]} for x in longMessage]
+    answers.extend(my_list)
+
+    logger.debug(f'{answers=}')
+    for key in keys:
+        for answer in answers:
+            key1=key.replace('[','').replace(']','')
+            if answer['tag'] == key1:
+                promt = promt.replace(key,answer['answer'])
+    
+    promt = promt.replace('[StoryToTell]',textStorie)
+    
+    if isDEBUG == True:
+        answerGPT = 'answerGPT_storiesSplit'
+    else:
+        answerGPT = gpt.answer(promt,[])[0]
+
+    send_long_message(userID=userID,text=answerGPT)
+    USERS_ANSWER_GPT[userID]['splitContent'] = answerGPT 
+
+
 def create_content(typeContent, userID, messageID):
 
     global USERS_ANSWER_GPT
@@ -170,23 +204,18 @@ def create_content(typeContent, userID, messageID):
     project = sql.select_query('project',f'time_epoh={projectID}')[0] 
     subjectID = sql.get_subject_id(userID)
     projectName = project['name']
-    # promtURL = PROMT_URLS[typeContent]
-    #promt load
-    #gpt answer
+
     promt = gpt.load_prompt(PROMT_URL_CREATE_CONTENT)
-    # print(promt)
-    promt = find_text_from_promt(forSubjectType=typeContent, text=promt)
+    
+    promt = find_text_from_promt(forSubjectType='FreytagsPyramid', text=promt)
     keys = find_key_words(promt)
     print(keys)
     
     answers = sql.get_answer_list_on(subjectID=subjectID, forProfileID=projectID)
     longMessage = get_long_message(userID)[0]
-    # my_dict = {'a': 1, 'b': 2, 'c': 3}
     my_list = [{'tag':x, 'answer':longMessage[x]} for x in longMessage]
-    # my_list = [{x:longMessage[x]} for x in longMessage]
     answers.extend(my_list)
-    # answers.update(longMessage)
-    # sql.get_answer_on
+    typeComunication = sql.get('typeComunication', userID)
     logger.debug(f'{answers=}')
     for key in keys:
         for answer in answers:
@@ -194,31 +223,79 @@ def create_content(typeContent, userID, messageID):
             if answer['tag'] == key1:
                 promt = promt.replace(key,answer['answer'])
     promt = promt.replace('[StorytellingStructure]',StorytellingStructure)
+    promt = promt.replace('[typeComunication]',typeComunication)
     print(promt)
     # text = {"role": "user", "content": 'как можно точнее'}
     bot.send_message(userID, f'Формируем сторителлинг, процесс может занять до 10 минут.')
-    
-    
-    #TODO NOTE
+    #StoryToTell and StoryToSlit
+
     if isDEBUG == True:
         answerGPT = 'answerGPT_stories'
     else:
         answerGPT = gpt.answer(promt,[])[0]
     
-    
+
     add_message_to_history(userID, 'assistant', answerGPT)
     # answerGPT = 'answerGPT'
-    createContent = ''
-    keyboard=keyboard_create_content(typeContent)
+    
+
+    keyboard=keyboard_create_content('stories')
     send_long_message(userID, answerGPT)
+    split_stories(userID, projectID, answerGPT)
     bot.send_message(userID, f'Классно или что-то отредактировать?',reply_markup=keyboard)
 
     # bot.edit_message_text(chat_id=userID,message_id=messageID, text=f'Классно или что-то отредактировать?',reply_markup=keyboard)
-    USERS_ANSWER_GPT[userID]=answerGPT
+    USERS_ANSWER_GPT[userID]['contenText']=answerGPT
     sql.set_payload(userID, f'contentDone_{projectID}_{typeContent}')
     return 0
 
-   
+
+def create_structure(userID, projectID):
+    # Выбор структуры
+    # {structure}
+    typeComunication = sql.get('typeComunication', userID)
+    promt = gpt.load_prompt('https://docs.google.com/document/d/1lfcuIdcBx38zQVzAJv_XNniXoLAk-S1hj1GLuqU0qQs/edit?usp=sharing')
+    promt = find_text_from_promt(forSubjectType='structure', text=promt)
+    keys = find_key_words(promt)
+    print(keys)
+
+    answers = sql.get_all_answer_list(forProfileID=projectID) 
+    logger.debug(f'{answers=}')
+    for key in keys:
+        for answer in answers:
+            key1=key.replace('[','').replace(']','')
+            if answer['tag'] == key1:
+                promt = promt.replace(key,answer['answer'])
+    print(promt)
+    #TODO переделать на руссикий язык а то получается 
+    promt = promt.replace('[typeComunication]', typeComunication)
+    print(promt)
+    # text = {"role": "user", "content": 'как можно точнее'}
+    bot.send_message(userID, f'Формируем структуру сторителинга')        
+
+    if isDEBUG == True:
+        answerGPT = 'answerGPT_strateg'
+    else:
+        answerGPT = gpt.answer(promt,[])[0]
+    
+    bot.send_message(userID,text=answerGPT) 
+    
+    questionID = 40
+    if answer == []:
+        row = {
+            'id':time_epoch(),
+            'idProfile': sql.get_project_id(userID),
+            # 'Answer': subjectCallBack,
+            'Answer': answerGPT,
+            'idQuestionList': questionID
+        }
+        sql.insert_query('ProfileDescription', rows=row)
+    else:
+        row = {
+            'Answer': answerGPT,
+        }
+        sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={questionID}")
+
 @bot.callback_query_handler(func=lambda call: True)
 @logger.catch
 def callback_inline(callFull):
@@ -430,6 +507,7 @@ def callback_inline(callFull):
         sql.set_payload(userID,f'edit_{call[1]}_{call[2]}')   
         
     if call[0] == 'contentCreate':
+        call[1]='stories'
         clear_history(str(userID))
         # get_history(str(userID))
         sql.set_payload(userID, 'create_content')
@@ -439,13 +517,17 @@ def callback_inline(callFull):
         return 0
     
     if call[0] == 'create':
-        
+        call[2]='stories' 
+
         if call[1] == 'done':
+            typeComunication = sql.get('typeComunication',whereID=userID)
             row = {
                 'time_epoh':time_epoch(),
                 'project_id':projectID,
-                'text': USERS_ANSWER_GPT[userID],
-                'type_content': call[2]
+                'StoryToTell': USERS_ANSWER_GPT[userID]['contenText'],
+                'type_content': 'stories',
+                'typeComunication':typeComunication,
+                'StorisSplit':USERS_ANSWER_GPT[userID]['splitContent'],
             }
             sql.insert_query('content', rows=row)
             bot.edit_message_text(chat_id=userID,message_id=message_id,text='Ваш контент сохранен',reply_markup=keyboard_menu_project('content'))
@@ -481,12 +563,14 @@ def callback_inline(callFull):
         text = ''
         # pprint(contents)
         for content in contents:
+            # text = content['StoryToTell']
             # date = timestamp_to_date(content['time_epoh'],'%Y-%m-%d%H')
-            text += f"""\n {content['text']} \n\n"""
+            text += f"""\n {content['StorisSplit']} \n\n"""
         if text== '':
             bot.send_message(userID,"Похоже у вас еще нет контента =(") 
         else:
-            bot.send_message(userID,text) 
+            send_long_message(userID,text)
+            # bot.send_message(userID,text) 
 
     if call[0] == 'analis':
         bot.send_message(userID,f'Анализируем Продукт, процесс может занять несколько минут.', )
@@ -524,49 +608,7 @@ def callback_inline(callFull):
         #     pass
         typeComunication = call[1]
         
-        # Выбор структуры
-        # {structure}
-        promt = gpt.load_prompt('https://docs.google.com/document/d/1lfcuIdcBx38zQVzAJv_XNniXoLAk-S1hj1GLuqU0qQs/edit?usp=sharing')
-        promt = find_text_from_promt(forSubjectType='structure', text=promt)
-        keys = find_key_words(promt)
-        print(keys)
-
-        answers = sql.get_all_answer_list(forProfileID=projectID) 
-        logger.debug(f'{answers=}')
-        for key in keys:
-            for answer in answers:
-                key1=key.replace('[','').replace(']','')
-                if answer['tag'] == key1:
-                    promt = promt.replace(key,answer['answer'])
-        print(promt)
-        #TODO переделать на руссикий язык а то получается 
-        promt = promt.replace('[typeComunication]', typeComunication)
-        print(promt)
-        # text = {"role": "user", "content": 'как можно точнее'}
-        bot.send_message(userID, f'Формируем стратегию создания')        
-
-        if isDEBUG == True:
-            answerGPT = 'answerGPT_strateg'
-        else:
-            answerGPT = gpt.answer(promt,[])[0]
         
-        bot.send_message(userID,text=answerGPT) 
-        
-        questionID = 40
-        if answer == []:
-            row = {
-                'id':time_epoch(),
-                'idProfile': sql.get_project_id(userID),
-                # 'Answer': subjectCallBack,
-                'Answer': answerGPT,
-                'idQuestionList': questionID
-            }
-            sql.insert_query('ProfileDescription', rows=row)
-        else:
-            row = {
-                'Answer': answerGPT,
-            }
-            sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={questionID}")
             
         
         sql.set(userID=userID,what='typeComunication', entity=typeComunication)
@@ -761,8 +803,10 @@ def create_onbord_for(subjectID, userID, projectID, message_id,questionID):
     # bot.send_message(userID, f'Формирую описание ЦА…')
     bot.send_message(userID, f'Сегментируем Целевую Аудиторию, процесс может занять несколько минут.')
     #TODO #NOTE
-    # answerGPT = gpt.answer(promt,[])[0]
-    answerGPT = "AnswerGPT"
+    if isDEBUG:
+        answerGPT = "AnswerGPT"
+    else:
+        answerGPT = gpt.answer(promt,[])[0]
     longMessage = get_long_message(userID)
     if longMessage == []:
         add_long_message(userID, {subject[subjectID]:answerGPT})
@@ -973,8 +1017,8 @@ def any_message(message):
                 }
                 # sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}")
                 sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}")
-            
-            create_content(typeContent='stories', userID=userID, messageID=message_id)
+            create_structure(userID=userID, projectID=projectID) 
+            create_content(typeContent='FreytagsPyramid', userID=userID, messageID=message_id)
             # pass            
 
         try:
