@@ -150,7 +150,6 @@ def my_project(userID, messageID):
     bot.send_message(userID,text='Список проектов',reply_markup=create_inlinekeyboard_is_row(dic,'a') )
 
 
-
 def delete_my_project(userID, messageID, projectID):
      
     sql.delete_query('project',where=f'time_epoh = {projectID}')
@@ -162,9 +161,6 @@ def delete_my_project(userID, messageID, projectID):
     for project in projects:
         dic.setdefault(project['name'], f"project_{project['time_epoh']}")
     
-
-
-
 
 def create_content(typeContent, userID, messageID):
 
@@ -204,9 +200,12 @@ def create_content(typeContent, userID, messageID):
     
     
     #TODO NOTE
-    #answerGPT = gpt.answer(promt,[])[0]
+    if isDEBUG == True:
+        answerGPT = 'answerGPT_stories'
+    else:
+        answerGPT = gpt.answer(promt,[])[0]
     
-    answerGPT = 'answerGPT_stories'
+    
     add_message_to_history(userID, 'assistant', answerGPT)
     # answerGPT = 'answerGPT'
     createContent = ''
@@ -220,7 +219,6 @@ def create_content(typeContent, userID, messageID):
     return 0
 
    
-
 @bot.callback_query_handler(func=lambda call: True)
 @logger.catch
 def callback_inline(callFull):
@@ -525,6 +523,52 @@ def callback_inline(callFull):
         # if call[1]=='sell':
         #     pass
         typeComunication = call[1]
+        
+        # Выбор структуры
+        # {structure}
+        promt = gpt.load_prompt('https://docs.google.com/document/d/1lfcuIdcBx38zQVzAJv_XNniXoLAk-S1hj1GLuqU0qQs/edit?usp=sharing')
+        promt = find_text_from_promt(forSubjectType='structure', text=promt)
+        keys = find_key_words(promt)
+        print(keys)
+
+        answers = sql.get_all_answer_list(forProfileID=projectID) 
+        logger.debug(f'{answers=}')
+        for key in keys:
+            for answer in answers:
+                key1=key.replace('[','').replace(']','')
+                if answer['tag'] == key1:
+                    promt = promt.replace(key,answer['answer'])
+        print(promt)
+        #TODO переделать на руссикий язык а то получается 
+        promt = promt.replace('[typeComunication]', typeComunication)
+        print(promt)
+        # text = {"role": "user", "content": 'как можно точнее'}
+        bot.send_message(userID, f'Формируем стратегию создания')        
+
+        if isDEBUG == True:
+            answerGPT = 'answerGPT_strateg'
+        else:
+            answerGPT = gpt.answer(promt,[])[0]
+        
+        bot.send_message(userID,text=answerGPT) 
+        
+        questionID = 40
+        if answer == []:
+            row = {
+                'id':time_epoch(),
+                'idProfile': sql.get_project_id(userID),
+                # 'Answer': subjectCallBack,
+                'Answer': answerGPT,
+                'idQuestionList': questionID
+            }
+            sql.insert_query('ProfileDescription', rows=row)
+        else:
+            row = {
+                'Answer': answerGPT,
+            }
+            sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={questionID}")
+            
+        
         sql.set(userID=userID,what='typeComunication', entity=typeComunication)
         subjectID = sql.get_subject_id(userID)
         questions = sql.get_question_list_on(subjectID=subjectID, onlyQuestion=True)
@@ -616,7 +660,11 @@ def create_analis_for(subjectID, userID, projectID,):
         bot.send_message(userID, f'Сегментируем {textQuestion}, процесс может занять несколько минут.')
         #TODO #NOTE
         # answerGPT = gpt.answer(promt,[])[0]
-        answerGPT = f"AnswerGPT_{tag}"
+        if isDEBUG == True:
+            answerGPT = f"AnswerGPT_{tag}"
+        else:
+            answerGPT = gpt.answer(promt,[])[0]
+
         longMessage = get_long_message(userID)
         if longMessage == []:
             add_long_message(userID, {subject[subjectID]:answerGPT})
@@ -1038,7 +1086,7 @@ def any_message(message):
         try:
             textQuestion = questions[numQuestion+1]['text']
         except:
-            bot.send_message(userID,text='весь проект заполнен спасибо',)
+            bot.send_message(userID,text='весь проект заполнен спасибо кончились вопросы',)
             sql.set_payload(userID,f"")
             return 0 
         

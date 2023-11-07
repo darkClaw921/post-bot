@@ -439,6 +439,24 @@ class Ydb:
                              'answer':answer})
         return answers
     
+    def get_all_answer_list(self, forProfileID:int, ):
+        answers = []
+        for subjectID in range(1,8):
+            questions = self.get_question_list_on(subjectID=subjectID)
+            # pprint(questions)
+            for question in questions:
+                # logger.critical(question)
+                try:
+                    answer = self.get_answer_on(questionID=question['id'], forProfileID=forProfileID)[0]['Answer']
+                except Exception as e:
+                    logger.debug("Нет ответа на этот вопрос",e)
+                    continue
+
+                # answers.append(answer)
+                answers.append({'tag':question['Tag'],
+                             'answer':answer})
+        return answers 
+
     def plus_query_user(self, tableName: str, rows: dict, where: str):
         # 'where id > 20 '
         """складывает предыдущие значения row с новыми"""
