@@ -627,7 +627,7 @@ def callback_inline(callFull):
 
     sql.set(userID=userID, what='content_create', entity=call[1])
     sql.set_call_back(userID,callFull.data)
-    bot.answer_callback_query(callFull.id)
+    # bot.answer_callback_query(callFull.id)
 
 #TODO 
 # a = {'[about the product]=': 'prod_info',
@@ -705,7 +705,11 @@ def create_analis_for(subjectID, userID, projectID,):
         if isDEBUG == True:
             answerGPT = f"AnswerGPT_{tag}"
         else:
-            answerGPT = gpt.answer(promt,[])[0]
+            try:
+                answerGPT = gpt.answer(promt,[])[0]
+            except:
+                bot.send_message(userID, f'Сервера перегружены, попробуйте через 30мин')
+                return 0
 
         longMessage = get_long_message(userID)
         if longMessage == []:
@@ -1017,8 +1021,9 @@ def any_message(message):
                 }
                 # sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={numQuestion}")
                 sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}")
-            create_structure(userID=userID, projectID=projectID) 
-            create_content(typeContent='FreytagsPyramid', userID=userID, messageID=message_id)
+            structure = create_structure(userID=userID, projectID=projectID) 
+            # create_content(typeContent='FreytagsPyramid', userID=userID, messageID=message_id)
+            create_content(typeContent=structure, userID=userID, messageID=message_id)
             # pass            
 
         try:
@@ -1051,7 +1056,7 @@ def any_message(message):
                 sql.update_query('ProfileDescription', rows=row, where=f"idProfile = {projectID} and idQuestionList={idQuestions}") 
             
             #TODO
-            idQuestionsMinor = questions[numQuestion]['id'] 
+            idQuestionsMinor = questions[numQuestion+1]['id']
             if typeQuestions == 'generate':
                 bot.send_message(userID,text=f"""Отлично! ✅
 Это было очень важно, думаем вам самим было интересно поразмышлять о проекте под таким углом 😉
