@@ -862,7 +862,9 @@ def voice_processing(message):
     downloaded_file = bot.download_file(file_info.file_path)
     with open(file_name_full, 'wb') as new_file:
         new_file.write(downloaded_file)
+    
     os.system("ffmpeg -i "+file_name_full+"  "+file_name_full_converted)
+    
     text=recognise(file_name_full_converted)
     bot.reply_to(message, text)
     os.remove(file_name_full)
